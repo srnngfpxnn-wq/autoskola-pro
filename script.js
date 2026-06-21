@@ -1332,7 +1332,15 @@ document.addEventListener('DOMContentLoaded', function() {
     createParticles();
     initializeNavbar();
 
-    const page = window.location.pathname.split('/').pop() || 'index.html';
+    // Get current page filename, handle both /page.html and /page (Vercel clean URLs)
+    let page = window.location.pathname.split('/').pop() || 'index.html';
+    // Remove trailing slash if present
+    if (page.endsWith('/')) page = page.slice(0, -1);
+    // If no extension, add .html for comparison
+    if (page && !page.includes('.')) page = page + '.html';
+    // Default to index.html if empty
+    if (!page || page === '.html') page = 'index.html';
+
     if (page === 'login.html') initializeLoginPage();
     else if (page === 'register.html') initializeRegisterPage();
     else if (page === 'app.html') initializeAppPage();
