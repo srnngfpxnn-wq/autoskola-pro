@@ -1,0 +1,21 @@
+{
+  "server": {
+    "baseDir": ".",
+    "index": "index.html",
+    "routes": {
+      "/": "."
+    }
+  },
+  "port": 3000,
+  "open": "external",
+  "ghostMode": false,
+  "online": false,
+  "notify": false,
+  "ui": false,
+  "codeSync": false,
+  "injectChanges": false,
+  "snippetOptions": {
+    "async": true,
+    "history": false
+  }
+}
