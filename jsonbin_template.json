@@ -1,0 +1,23 @@
+{
+  "users": [
+    {
+      "id": "ceo_001",
+      "email": "scale.czsklol@gmail.com",
+      "password": "kokotko123",
+      "name": "CEO Majitel",
+      "isCEO": true,
+      "xp": 0,
+      "bestScore": 0,
+      "achievements": [],
+      "streak": 0,
+      "bestStreak": 0,
+      "totalAnswered": 0,
+      "avatar": ""
+    }
+  ],
+  "appData": {
+    "groups": [],
+    "availableCategories": ["znacky", "situace"]
+  },
+  "lastSync": "2026-01-01T00:00:00.000Z"
+}
