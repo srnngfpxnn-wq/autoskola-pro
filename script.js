@@ -1,5 +1,5 @@
 /* ========================================
-   AUTOSKOLA PRO - Final v3
+   AUTOSKOLA PRO - Final v6 (SQLite + Signs)
    ======================================== */
 
 // ==========================================
@@ -9,8 +9,26 @@ const APP_DATA_KEY = 'autoskolaProData';
 const APP_USERS_KEY = 'autoskolaProUsers';
 const APP_SESSION_KEY = 'autoskolaProSession';
 const APP_THEME_KEY = 'autoskolaProTheme';
+const APP_SIGNS_KEY = 'autoskolaProSigns';
 const CEO_EMAIL = 'scale.czsklol@gmail.com';
 const CEO_PASSWORD = 'kokotko123';
+
+const API_URL = window.location.origin + '/api';
+const REMOTE_QUESTION_MAX = 1200;
+const REMOTE_FETCH_TIMEOUT = 120000;
+const REMOTE_INFO_RETRY = 2;
+
+const REMOTE_TOPICS = [
+    { key: 'remote_1', icon: 'fa-book', name: 'Pravidla provozu', topic: 1 },
+    { key: 'remote_2', icon: 'fa-traffic-light', name: 'Dopravní značky', topic: 2 },
+    { key: 'remote_3', icon: 'fa-shield-alt', name: 'Bezpečná jízda', topic: 3 },
+    { key: 'remote_4', icon: 'fa-car-crash', name: 'Dopravní situace', topic: 4 },
+    { key: 'remote_5', icon: 'fa-tools', name: 'Podmínky provozu vozidel', topic: 5 },
+    { key: 'remote_6', icon: 'fa-file-alt', name: 'Předpisy o provozu', topic: 6 },
+    { key: 'remote_7', icon: 'fa-heartbeat', name: 'Zdravotnická příprava', topic: 7 }
+];
+
+const remoteTopicInfoCache = {};
 
 const LEVELS = [
     { level: 1, title: 'Chodec', xpNeeded: 0 },
@@ -45,19 +63,12 @@ const MOCK_LEADERBOARD = [
 ];
 
 // ==========================================
-// AUDIO
+// AUDIO (disabled - no sounds)
 // ==========================================
 const AudioFX = {
     correct: null, wrong: null, fanfare: null, achievement: null,
-    init() {
-        try {
-            this.correct = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            this.wrong = new Audio('https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg');
-            this.fanfare = new Audio('https://actions.google.com/sounds/v1/crowds/audience_claps.ogg');
-            this.achievement = new Audio('https://actions.google.com/sounds/v1/crowds/audience_applause.ogg');
-        } catch(e) {}
-    },
-    play(s) { try { if (this[s]) { this[s].currentTime = 0; this[s].play().catch(()=>{}); } } catch(e) {} }
+    init() {},
+    play(s) {}
 };
 
 // ==========================================
@@ -87,27 +98,57 @@ function initAppData() {
             xp: 0, bestScore: 0, achievements: [], streak: 0, bestStreak: 0, totalAnswered: 0, avatar: ''
         }]));
     }
+    const defaultData = {
+        groups: [
+            { id: 'group_online', letter: 'B', name: 'Skupina B', categories: {} }
+        ],
+        availableCategories: ['znacky', 'situace']
+    };
     if (!localStorage.getItem(APP_DATA_KEY)) {
-        localStorage.setItem(APP_DATA_KEY, JSON.stringify({
-            groups: [
-                { id: 'group_b', letter: 'B', name: 'Osobní automobily', categories: {
-                    znacky: [
-                        { id: 'b_zn_001', question: 'Co znamená červený trojúhelník s černým symbolem?', imageUrl: '', options: ['A: Výstražná značka - nebezpečí', 'B: Značka upravující přednost', 'C: Zákazová značka'], correctIndex: 0, category: 'znacky', explanation: 'Červený trojúhelník je výstražná značka.' },
-                        { id: 'b_zn_002', question: 'Jaká je max. povolená rychlost v obci?', imageUrl: '', options: ['A: 30 km/h', 'B: 50 km/h', 'C: 70 km/h'], correctIndex: 1, category: 'znacky', explanation: 'V obci je max. 50 km/h.' },
-                        { id: 'b_zn_003', question: 'Co znamená modrá kruhová značka s bílou šipkou?', imageUrl: '', options: ['A: Zákaz vjezdu', 'B: Příkazová značka - směr jízdy', 'C: Informativní značka'], correctIndex: 1, category: 'znacky', explanation: 'Modrá kruhová = příkazová.' }
-                    ],
-                    situace: [
-                        { id: 'b_sit_001', question: 'Jaký bezpečný odstup od cyklisty v obci?', imageUrl: '', options: ['A: 0,5m', 'B: 1m', 'C: 1,5m'], correctIndex: 2, category: 'situace', explanation: 'Alespoň 1,5 metru.' },
-                        { id: 'b_sit_002', question: 'Chodec na přechodu. Co uděláte?', imageUrl: '', options: ['A: Zpomalím', 'B: Zastavím a nechám ho přejít', 'C: Troubím'], correctIndex: 1, category: 'situace', explanation: 'Musíte zastavit.' },
-                        { id: 'b_sit_003', question: 'V jakém stavu smíte řídit?', imageUrl: '', options: ['A: Technicky způsobilém', 'B: S drobnými závadami', 'C: Na stavu nezáleží'], correctIndex: 0, category: 'situace', explanation: 'Vozidlo musí být technicky způsobilé.' }
-                    ]
-                }},
-                { id: 'group_c', letter: 'C', name: 'Nákladní automobily', categories: { znacky: [], situace: [] } },
-                { id: 'group_am', letter: 'AM', name: 'Motocykly do 125 ccm', categories: { znacky: [], situace: [] } }
-            ],
-            availableCategories: ['znacky', 'situace']
-        }));
+        localStorage.setItem(APP_DATA_KEY, JSON.stringify(defaultData));
+    } else {
+        const existingData = getAppData();
+        existingData.groups = (existingData.groups || []).filter(g => !['group_b', 'group_c', 'group_am'].includes(g.id));
+        let online = existingData.groups.find(g => g.id === 'group_online');
+        if (!online) {
+            existingData.groups.push(defaultData.groups[0]);
+        } else {
+            online.letter = 'B';
+            online.name = 'Skupina B';
+            if (!online.categories) online.categories = {};
+        }
+        const mergedData = mergeDefaultAppData(existingData, defaultData);
+        saveAppData(mergedData);
     }
+    // Inicializovat značky
+    if (!localStorage.getItem(APP_SIGNS_KEY)) {
+        localStorage.setItem(APP_SIGNS_KEY, JSON.stringify({ categories: [], signs: [] }));
+    }
+}
+
+function mergeDefaultAppData(existing, defaults) {
+    if (!existing || typeof existing !== 'object') return defaults;
+    if (!existing.groups) existing.groups = [];
+    if (!existing.availableCategories) existing.availableCategories = [];
+    for (const cat of defaults.availableCategories || []) {
+        if (!existing.availableCategories.includes(cat)) existing.availableCategories.push(cat);
+    }
+    for (const defGroup of defaults.groups || []) {
+        let group = existing.groups.find(g => g.id === defGroup.id);
+        if (!group) {
+            existing.groups.push(defGroup);
+            continue;
+        }
+        if (!group.categories) group.categories = {};
+        for (const [catKey, defQuestions] of Object.entries(defGroup.categories || {})) {
+            if (!group.categories[catKey]) group.categories[catKey] = [];
+            const existingIds = new Set((group.categories[catKey] || []).map(q => q.id));
+            for (const q of defQuestions) {
+                if (!existingIds.has(q.id)) group.categories[catKey].push(q);
+            }
+        }
+    }
+    return existing;
 }
 
 function generateId() { return 'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,9); }
@@ -120,12 +161,153 @@ function saveSession(s) { if (s) localStorage.setItem(APP_SESSION_KEY, JSON.stri
 function getCurrentUser() {
     const s = getCurrentSession(); if (!s) return null; return getUsers().find(u => u.id === s.userId) || null;
 }
-function updateCurrentUser(upd) {
-    const s = getCurrentSession(); if (!s) return;
-    const users = getUsers(); const idx = users.findIndex(u => u.id === s.userId); if (idx === -1) return;
-    Object.assign(users[idx], upd); saveUsers(users);
-    if (upd.name) { s.name = upd.name; saveSession(s); }
-    if (upd.email) { s.email = upd.email; saveSession(s); }
+
+// ==========================================
+// SIGNS DATA (Dopravní značky)
+// ==========================================
+function getSignsData() {
+    try { return JSON.parse(localStorage.getItem(APP_SIGNS_KEY)) || { categories: [], signs: [] }; }
+    catch { return { categories: [], signs: [] }; }
+}
+function saveSignsData(d) { localStorage.setItem(APP_SIGNS_KEY, JSON.stringify(d)); }
+
+function addSignCategory(name, icon) {
+    const data = getSignsData();
+    if (data.categories.find(c => c.name === name)) return { success: false, message: 'Kategorie již existuje.' };
+    data.categories.push({ id: generateId(), name, icon: icon || 'fa-triangle-exclamation' });
+    saveSignsData(data);
+    return { success: true, message: `Kategorie "${name}" přidána.` };
+}
+
+function deleteSignCategory(catId) {
+    const data = getSignsData();
+    data.categories = data.categories.filter(c => c.id !== catId);
+    data.signs = data.signs.filter(s => s.categoryId !== catId);
+    saveSignsData(data);
+}
+
+function addSign(categoryId, name, imageUrl, description) {
+    const data = getSignsData();
+    if (!data.categories.find(c => c.id === categoryId)) return { success: false, message: 'Kategorie neexistuje.' };
+    data.signs.push({
+        id: generateId(),
+        categoryId,
+        name,
+        imageUrl: imageUrl || '',
+        description: description || ''
+    });
+    saveSignsData(data);
+    return { success: true, message: `Značka "${name}" přidána.` };
+}
+
+function deleteSign(signId) {
+    const data = getSignsData();
+    data.signs = data.signs.filter(s => s.id !== signId);
+    saveSignsData(data);
+}
+
+// ==========================================
+// API VOLÁNÍ
+// ==========================================
+async function apiGet(url) {
+    try {
+        const resp = await fetch(API_URL + url);
+        return await resp.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
+}
+
+async function fetchWithTimeout(url, options = {}, timeout = REMOTE_FETCH_TIMEOUT) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { signal: controller.signal, ...options });
+        return response;
+    } finally {
+        clearTimeout(id);
+    }
+}
+
+async function apiPost(url, data) {
+    try {
+        const resp = await fetch(API_URL + url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return await resp.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
+}
+
+async function apiPut(url, data) {
+    try {
+        const resp = await fetch(API_URL + url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return await resp.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
+}
+
+async function getRemoteTopicInfo(topicId) {
+    if (remoteTopicInfoCache[topicId]) return remoteTopicInfoCache[topicId];
+    let lastError = null;
+    for (let attempt = 1; attempt <= REMOTE_INFO_RETRY; attempt++) {
+        try {
+            const resp = await fetchWithTimeout(`${API_URL}/remote-group-info?topic=${topicId}`);
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.message || 'Nepodařilo se načíst info tématu');
+            remoteTopicInfoCache[topicId] = data;
+            return data;
+        } catch (e) {
+            lastError = e;
+            if (attempt < REMOTE_INFO_RETRY) await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+    throw lastError || new Error('Nepodařilo se načíst info tématu');
+}
+
+// ==========================================
+// SYNC S DATABÁZÍ
+// ==========================================
+async function syncUsersFromDB() {
+    const result = await apiGet('/users');
+    if (result.success && result.users) {
+        const local = getUsers();
+        result.users.forEach(du => {
+            const ex = local.find(u => u.id === du.id);
+            if (ex) {
+                ex.xp = Math.max(ex.xp || 0, du.xp || 0);
+                ex.bestScore = Math.max(ex.bestScore || 0, du.bestScore || 0);
+                ex.totalAnswered = Math.max(ex.totalAnswered || 0, du.totalAnswered || 0);
+            } else {
+                local.push(du);
+            }
+        });
+        saveUsers(local);
+        return true;
+    }
+    return false;
+}
+
+async function syncUserToDB(userId, data) {
+    const result = await apiPut('/users/' + userId, data);
+    if (result.success && result.user) {
+        const local = getUsers();
+        const idx = local.findIndex(u => u.id === userId);
+        if (idx !== -1) {
+            Object.assign(local[idx], result.user);
+            saveUsers(local);
+        }
+        return true;
+    }
+    return false;
 }
 
 // ==========================================
@@ -135,7 +317,7 @@ function addXP(amount) {
     const u = getCurrentUser(); if (!u) return null;
     const nx = (u.xp||0)+amount; const ol = getLevel(u.xp||0); const nl = getLevel(nx);
     updateCurrentUser({xp:nx});
-    if (nl.level > ol.level) { showLevelUpNotification(nl); AudioFX.play('fanfare'); }
+    if (nl.level > ol.level) { showLevelUpNotification(nl); }
     updateNavbarXP();
     return {xp:nx, level:nl};
 }
@@ -152,7 +334,7 @@ function checkAchievement(id) {
     const u = getCurrentUser(); if (!u) return false;
     const a = u.achievements||[]; if (a.includes(id)) return false;
     const ach = Object.values(ACHIEVEMENTS).find(x => x.id===id); if (!ach) return false;
-    a.push(id); updateCurrentUser({achievements:a}); addXP(ach.xpReward); AudioFX.play('achievement');
+    a.push(id); updateCurrentUser({achievements:a}); addXP(ach.xpReward);
     if (typeof Swal !== 'undefined') Swal.fire({icon:'success',title:`🏆 ${ach.title}!`,html:`<div style="font-size:3rem;margin-bottom:0.5rem;"><i class="fas ${ach.icon}"></i></div><p>${ach.desc}<br><small style="color:#fbbf24;">+${ach.xpReward} XP</small></p>`,timer:4000,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#fbbf24',customClass:{popup:'animate__animated animate__bounceIn'}});
     return true;
 }
@@ -167,13 +349,68 @@ function getStreakDisplay() {
 }
 
 // ==========================================
+// AUTH
+// ==========================================
+async function handleLogin(email, password) {
+    const result = await apiPost('/login', { email, password });
+    if (result.success) {
+        const u = result.user;
+        const users = getUsers();
+        const ex = users.find(x => x.id === u.id);
+        if (ex) Object.assign(ex, u);
+        else users.push(u);
+        saveUsers(users);
+        saveSession({userId: u.id, email: u.email, name: u.name, isCEO: u.isCEO, loggedInAt: new Date().toISOString()});
+        return {success: true, message: 'Přihlášení proběhlo úspěšně!', isCEO: u.isCEO};
+    }
+    return {success: false, message: result.message || 'Nesprávný email nebo heslo.'};
+}
+
+async function handleRegister(name, email, password) {
+    const result = await apiPost('/register', { name, email, password });
+    if (result.success) {
+        const u = result.user;
+        const users = getUsers();
+        users.push(u);
+        saveUsers(users);
+        saveSession({userId: u.id, email: u.email, name: u.name, isCEO: false, loggedInAt: new Date().toISOString()});
+        return {success: true, message: 'Registrace proběhla úspěšně!', isCEO: false};
+    }
+    return {success: false, message: result.message || 'Registrace selhala.'};
+}
+
+function updateCurrentUser(upd) {
+    const s = getCurrentSession(); if (!s) return;
+    const users = getUsers(); const idx = users.findIndex(u => u.id === s.userId); if (idx === -1) return;
+    Object.assign(users[idx], upd); saveUsers(users);
+    if (upd.name) { s.name = upd.name; saveSession(s); }
+    if (upd.email) { s.email = upd.email; saveSession(s); }
+    syncUserToDB(s.userId, upd);
+}
+
+// ==========================================
 // LEADERBOARD
 // ==========================================
 async function renderLeaderboard(containerId) {
     const c = document.getElementById(containerId); if (!c) return;
-    const users = getUsers(); let players = [];
-    if (users && users.length > 0 && users.some(u=>(u.xp||0) > 0)) {
-        players = users.map(u=>({name:u.name, xp:u.xp||0, avatar:u.avatar||'', isCEO:u.isCEO||false})).sort((a,b)=>b.xp-a.xp).slice(0,10);
+    const result = await apiGet('/users');
+    let players = [];
+    if (result.success && result.users && result.users.length > 0 && result.users.some(u => u.xp > 0)) {
+        players = result.users.map(u => ({name: u.name, xp: u.xp || 0, avatar: u.avatar || '', isCEO: u.isCEO || false}))
+            .sort((a,b) => b.xp - a.xp).slice(0, 10);
+        const local = getUsers();
+        result.users.forEach(du => {
+            const ex = local.find(u => u.id === du.id);
+            if (ex) Object.assign(ex, du);
+            else local.push(du);
+        });
+        saveUsers(local);
+    } else {
+        const users = getUsers();
+        if (users && users.length > 0 && users.some(u => u.xp > 0)) {
+            players = users.map(u => ({name: u.name, xp: u.xp || 0, avatar: u.avatar || '', isCEO: u.isCEO || false}))
+                .sort((a,b) => b.xp - a.xp).slice(0, 10);
+        }
     }
     if (players.length === 0) players = MOCK_LEADERBOARD;
     const ln = ['','Chodec','Žák','Řidič','Závodník','Profesionál','Mistr silnic','Legenda','Bůh volantu'];
@@ -183,8 +420,33 @@ async function renderLeaderboard(containerId) {
             let rc='rank-default',m=''; if(r===1){rc='rank-1';m='🥇'}else if(r===2){rc='rank-2';m='🥈'}else if(r===3){rc='rank-3';m='🥉'}
             const ah=p.avatar?`<img src="${p.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:0.5rem;">`
                 :`<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,107,0,0.15);display:inline-flex;align-items:center;justify-content:center;margin-right:0.5rem;font-size:0.75rem;color:#ff6b00;font-weight:700;flex-shrink:0;">${(p.name||'?').charAt(0)}</div>`;
-            const crown=p.isCEO?'<i class="fas fa-crown" style="color:#fbbf24;margin-right:0.3rem;"></i>':'';
-            return `<tr class="animate__animated animate__fadeIn" style="animation-delay:${i*0.05}s;"><td><span class="leaderboard-rank ${rc}" style="width:36px;height:36px;font-size:0.9rem;">${m||r}</span></td><td><div style="display:flex;align-items:center;">${ah}<div><div style="font-weight:600;font-size:0.9rem;color:var(--text-primary);">${crown}${p.name||'Neznámý'}</div></div></div></td><td><span style="color:var(--accent);font-weight:700;font-size:0.85rem;">${lvName}</span></td><td><span style="font-weight:700;font-size:0.95rem;color:var(--text-primary);">${(p.xp||0).toLocaleString()}</span><span style="font-size:0.65rem;color:var(--text-muted);display:block;">XP</span></td></tr>`;
+const crown = p.isCEO ? '<i class="fas fa-crown" style="color:#fbbf24;"></i>' : '';
+const devBadge = p.isCEO ? '<span style="font-size:0.75rem;font-weight:700;color:#ff8c00;border:1.5px solid #ff8c00;background-color:rgba(255, 140, 0, 0.15);padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px;">Dev</span>' : '';
+
+return `<tr class="animate__animated animate__fadeIn" style="animation-delay:${i*0.05}s;">
+    <td>
+        <span class="leaderboard-rank ${rc}" style="width:36px;height:36px;font-size:0.9rem;">${m||r}</span>
+    </td>
+    <td>
+        <div style="display:flex;align-items:center;">
+            ${ah}
+            <div>
+                <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:0.9rem;color:var(--text-primary);">
+                    ${p.name||'Neznámý'}
+                    ${crown}
+                    ${devBadge}
+                </div>
+            </div>
+        </div>
+    </td>
+    <td>
+        <span style="color:var(--accent);font-weight:700;font-size:0.85rem;">${lvName}</span>
+    </td>
+    <td>
+        <span style="font-weight:700;font-size:0.95rem;color:var(--text-primary);">${(p.xp||0).toLocaleString()}</span>
+        <span style="font-size:0.65rem;color:var(--text-muted);display:block;">XP</span>
+    </td>
+</tr>`;
         }).join('')}</tbody></table></div>`;
 }
 
@@ -203,10 +465,15 @@ function showLoginRequiredModal() {
     o.innerHTML=`<div class="modal-content animate__animated animate__bounceIn"><div class="modal-icon"><i class="fas fa-lock"></i></div><h3>Přístup omezen</h3><p>Pro přístup k testům se musíte přihlásit nebo registrovat.</p><div class="d-flex gap-3 justify-content-center flex-wrap"><a href="login.html" class="btn-autoskola">Přihlásit</a><a href="register.html" class="btn-autoskola btn-autoskola-outline">Registrovat</a></div></div>`;
     document.body.appendChild(o); o.addEventListener('click',function(e){if(e.target===o)o.remove();});
 }
-function showLoadingScreen(cb) {
+function showLoadingScreen(cbOrText, duration=1500) {
     const o=document.createElement('div');o.className='loading-overlay active';
-    o.innerHTML=`<div class="loading-spinner-wheel"><i class="fas fa-car-side"></i></div><div class="loading-text">Generuji tvůj test...</div><div class="loading-spinner"></div>`;
-    document.body.appendChild(o); setTimeout(()=>{o.remove();if(cb)cb();},1500);
+    const text = typeof cbOrText === 'string' ? cbOrText : 'Generuji tvůj test...';
+    o.innerHTML=`<div class="loading-spinner-wheel"><i class="fas fa-car-side"></i></div><div class="loading-text">${text}</div><div class="loading-spinner"></div>`;
+    document.body.appendChild(o);
+    if (typeof cbOrText === 'function') {
+        setTimeout(()=>{o.remove();cbOrText();},duration);
+    }
+    return o;
 }
 
 // ==========================================
@@ -216,165 +483,164 @@ function initializeNavbar() {
     const p = document.getElementById('navbar-placeholder'); if (!p) return;
     const session = getCurrentSession(); const user = getCurrentUser();
     const page = window.location.pathname.split('/').pop() || 'index.html';
-
-    let right = '';
+    let desktopUser = '';
+    let mobileUserSection = '';
     if (session) {
         const lv = getLevel(user?.xp||0); const prog = getXPProgress(user?.xp||0);
-        right = `
-            <li class="nav-item" style="position:relative;">
-                <a class="nav-link user-menu-toggle" href="#" style="color:#22c55e;padding:0.3rem 0.6rem;font-size:0.85rem;cursor:pointer;">
-                    <i class="fas fa-user-circle me-1"></i>${session.name||session.email} <span class="badge" style="background:rgba(255,107,0,0.2);color:#ff6b00;font-size:0.65rem;">Lv.${lv.level}</span> <i class="fas fa-chevron-down" style="font-size:0.6rem;"></i>
-                </a>
-                <div class="user-dropdown-menu" style="display:none;position:absolute;top:100%;right:0;min-width:220px;background:var(--navbar-bg);border:1px solid var(--border-color);border-radius:0.75rem;padding:0.5rem;z-index:9999;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
-                    <div class="px-3 py-2" style="border-bottom:1px solid var(--border-color);margin-bottom:0.5rem;">
-                        <div class="xp-bar" style="width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-                            <div class="xp-bar-fill" style="height:100%;width:${prog.progress}%;background:linear-gradient(90deg,var(--accent),#fbbf24);border-radius:2px;transition:width 0.5s;"></div>
-                        </div>
-                        <span style="font-size:0.65rem;color:var(--text-muted);margin-top:0.2rem;display:block;">Lv.${lv.level} ${lv.title}</span>
+        const initial = (session.name||'?').charAt(0).toUpperCase();
+        const xpPct = prog.progress;
+        desktopUser = `
+            <div style="position:relative;">
+                <div class="user-btn" id="userMenuBtn">
+                    <div class="user-avatar">${initial}</div>
+                    <div>
+                        <div style="font-size:0.85rem;font-weight:600;line-height:1.2;">${session.name||session.email}</div>
+                        <div class="user-xp-bar"><div class="fill" style="width:${xpPct}%;"></div></div>
                     </div>
-                    ${session.isCEO?'<a href="admin.html" class="user-dropdown-item" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;transition:background 0.2s;"><i class="fas fa-shield-alt" style="color:var(--accent);width:20px;"></i>Admin panel</a>':''}
-                    <a href="#" class="user-dropdown-item" id="logoutBtn" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;color:#ef4444;text-decoration:none;border-radius:0.5rem;transition:background 0.2s;"><i class="fas fa-sign-out-alt" style="width:20px;"></i>Odhlásit</a>
+                    <span class="user-level">Lv.${lv.level}</span>
+                    <i class="fas fa-chevron-down" style="font-size:0.6rem;opacity:0.6;transition:transform 0.3s;"></i>
                 </div>
-            </li>`;
+                <div class="user-dropdown" id="userDropdown">
+                    <div style="padding:0.5rem 0.7rem;border-bottom:1px solid var(--border-color);margin-bottom:0.25rem;">
+                        <div style="font-weight:600;font-size:0.85rem;">${session.name||session.email}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem;">Lv.${lv.level} ${lv.title} &middot; ${user?.xp||0} XP</div>
+                        <div style="margin-top:0.4rem;width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+                            <div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,var(--accent),#fbbf24);border-radius:2px;"></div>
+                        </div>
+                    </div>
+                    <button class="user-dropdown-item" onclick=\"window.location.href='app.html'\">
+                        <i class="fas fa-car" style="color:var(--accent);"></i> Aplikace
+                    </button>
+                    ${session.isCEO ? `
+                    <button class="user-dropdown-item" onclick=\"window.location.href='admin.html'\">
+                        <i class="fas fa-shield-alt" style="color:var(--accent);"></i> Admin panel
+                    </button>` : ''}
+                    <button class="user-dropdown-item danger" id="logoutBtnDesktop">
+                        <i class="fas fa-sign-out-alt"></i> Odhlásit
+                    </button>
+                </div>
+            </div>`;
+        mobileUserSection = `
+            <div class="mobile-user-section">
+                <div class="user-btn" style="justify-content:center;margin-bottom:0.5rem;">
+                    <div class="user-avatar">${initial}</div>
+                    <div>
+                        <div style="font-size:0.85rem;font-weight:600;line-height:1.2;">${session.name||session.email}</div>
+                        <div style="font-size:0.65rem;color:var(--text-muted);">Lv.${lv.level} ${lv.title} &middot; ${user?.xp||0} XP</div>
+                    </div>
+                </div>
+                <a class="nav-link active" href="app.html"><i class="fas fa-car"></i>Aplikace</a>
+                ${session.isCEO ? `<a class="nav-link" href="admin.html"><i class="fas fa-shield-alt"></i>Admin panel</a>` : ''}
+                <a class="nav-link" href="#" id="logoutBtnMobile" style="color:#ef4444;"><i class="fas fa-sign-out-alt"></i>Odhlásit</a>
+            </div>`;
     } else {
-        right = `
-            <li class="nav-item"><a class="nav-link ${page==='login.html'?'active':''}" href="login.html" style="font-size:0.85rem;padding:0.3rem 0.8rem;"><i class="fas fa-sign-in-alt me-1"></i>Přihlásit</a></li>
-            <li class="nav-item"><a class="nav-link ${page==='register.html'?'active':''}" href="register.html" style="font-size:0.85rem;padding:0.3rem 0.8rem;"><i class="fas fa-user-plus me-1"></i>Registrovat</a></li>`;
+        desktopUser = `
+            <a class="nav-link ${page==='login.html'?'active':''}" href="login.html" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 0.75rem;color:var(--text-secondary);text-decoration:none;font-weight:500;font-size:0.9rem;border-radius:0.5rem;transition:all 0.2s;"><i class="fas fa-sign-in-alt"></i>Přihlásit</a>
+            <a class="nav-link ${page==='register.html'?'active':''}" href="register.html" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 0.75rem;color:var(--text-secondary);text-decoration:none;font-weight:500;font-size:0.9rem;border-radius:0.5rem;transition:all 0.2s;"><i class="fas fa-user-plus"></i>Registrovat</a>`;
+        mobileUserSection = `
+            <div class="mobile-user-section">
+                <a class="nav-link ${page==='login.html'?'active':''}" href="login.html"><i class="fas fa-sign-in-alt"></i>Přihlásit</a>
+                <a class="nav-link ${page==='register.html'?'active':''}" href="register.html"><i class="fas fa-user-plus"></i>Registrovat</a>
+            </div>`;
     }
-
     p.innerHTML = `
-        <nav class="navbar fixed-top">
+        <nav class="navbar">
             <div class="container">
-                <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+                <a class="navbar-brand" href="index.html">
                     <i class="fas fa-graduation-cap" style="color:#ff6b00;font-size:1.3rem;"></i>
-                    <span style="font-weight:800;font-size:1.1rem;background:linear-gradient(135deg,#fff,#ff6b00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Autoškola Pro</span>
+                    <span style="background:linear-gradient(135deg,#fff,#ff6b00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Autoškola Pro</span>
                 </a>
-                <div class="d-flex align-items-center gap-1">
-                    <button class="theme-toggle" id="themeToggleBtn" title="Přepnout režim" style="width:34px;height:34px;font-size:0.9rem;">
+                <ul class="nav-links">
+                    <li><a class="nav-link ${page==='index.html'?'active':''}" href="index.html"><i class="fas fa-home"></i>Domů</a></li>
+                    <li><a class="nav-link app-link ${page==='app.html'?'active':''}" href="#"><i class="fas fa-car"></i>Aplikace</a></li>
+                    <li><a class="nav-link ${page==='leaderboard.html'?'active':''}" href="leaderboard.html"><i class="fas fa-trophy"></i>Žebříček</a></li>
+                </ul>
+                <div class="nav-right">
+                    <button class="theme-toggle" id="themeToggleBtn" title="Přepnout režim">
                         ${localStorage.getItem(APP_THEME_KEY)==='light'?'<i class="fas fa-moon"></i>':'<i class="fas fa-sun"></i>'}
                     </button>
-                    <button class="mobile-menu-btn border-0" id="mobileMenuToggle" style="width:34px;height:34px;background:rgba(255,107,0,0.1);border-radius:50%;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s;">
+                    ${desktopUser}
+                    <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
                         <i class="fas fa-bars"></i>
                     </button>
                 </div>
-                <!-- Mobile dropdown menu -->
-                <div class="mobile-menu-panel" id="mobileMenuPanel" style="display:none;position:absolute;top:100%;right:10px;min-width:200px;background:var(--navbar-bg);border:1px solid var(--border-color);border-radius:0.75rem;padding:0.5rem;z-index:9999;box-shadow:0 10px 40px rgba(0,0,0,0.3);opacity:0;transform:translateY(-10px);transition:all 0.3s ease;">
-                    <div style="display:flex;flex-direction:column;gap:0.25rem;">
-                        <a class="mobile-menu-item ${page==='index.html'?'active':''}" href="index.html" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-home" style="width:20px;color:var(--accent);"></i>Domů</a>
-                        <a class="mobile-menu-item app-link ${page==='app.html'?'active':''}" href="#" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-car" style="width:20px;color:var(--accent);"></i>Aplikace</a>
-                        <a class="mobile-menu-item ${page==='leaderboard.html'?'active':''}" href="leaderboard.html" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-trophy" style="width:20px;color:var(--accent);"></i>Žebříček</a>
-                        <hr style="border-color:var(--border-color);margin:0.25rem 0;">
-                        ${!session ? `
-                        <a class="mobile-menu-item" href="login.html" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-sign-in-alt" style="width:20px;color:var(--accent);"></i>Přihlásit</a>
-                        <a class="mobile-menu-item" href="register.html" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-user-plus" style="width:20px;color:var(--accent);"></i>Registrovat</a>
-                        ` : `
-                        <div style="padding:0.5rem 0.75rem;border-radius:0.5rem;background:rgba(34,197,94,0.05);">
-                            <div style="font-size:0.8rem;color:#22c55e;font-weight:600;"><i class="fas fa-user-circle me-1"></i>${session.name||session.email}</div>
-                            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">Lv.${lv.level} ${lv.title}</div>
-                            <div class="xp-bar" style="width:100%;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-top:0.3rem;"><div class="xp-bar-fill" style="height:100%;width:${prog.progress}%;background:linear-gradient(90deg,var(--accent),#fbbf24);border-radius:2px;"></div></div>
-                        </div>
-                        ${session.isCEO?`<a class="mobile-menu-item" href="admin.html" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:var(--text-primary);text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-shield-alt" style="width:20px;color:var(--accent);"></i>Admin panel</a>`:''}
-                        <a class="mobile-menu-item" href="#" id="logoutBtnMobile" style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;color:#ef4444;text-decoration:none;border-radius:0.5rem;font-size:0.9rem;transition:background 0.2s;"><i class="fas fa-sign-out-alt" style="width:20px;"></i>Odhlásit</a>
-                        `}
-                    </div>
-                </div>
-                <!-- Desktop inline nav (hidden on mobile) -->
-                <div class="desktop-nav" id="desktopNav" style="display:none;">
-                    <a href="index.html" style="color:var(--text-secondary);text-decoration:none;padding:0.3rem 0.8rem;font-size:0.85rem;border-radius:0.5rem;transition:all 0.3s;"><i class="fas fa-home me-1"></i>Domů</a>
-                    <a class="app-link" href="#" style="color:var(--text-secondary);text-decoration:none;padding:0.3rem 0.8rem;font-size:0.85rem;border-radius:0.5rem;transition:all 0.3s;"><i class="fas fa-car me-1"></i>Aplikace</a>
-                    <a href="leaderboard.html" style="color:var(--text-secondary);text-decoration:none;padding:0.3rem 0.8rem;font-size:0.85rem;border-radius:0.5rem;transition:all 0.3s;"><i class="fas fa-trophy me-1"></i>Žebříček</a>
-                    ${right.includes('Přihlásit')||right.includes('Registrovat')||right.includes('Odhlásit')?right.replace(/<li[^>]*>|<\/li>/g,'').replace(/class="nav-link/g,'style="color:var(--text-secondary);text-decoration:none;padding:0.3rem 0.8rem;font-size:0.85rem;border-radius:0.5rem;transition:all 0.3s;" class=""'):''}
-                </div>
             </div>
-        </nav>
-        <style>
-            .mobile-menu-item:hover { background:rgba(255,107,0,0.1); }
-            .mobile-menu-item.active { background:rgba(255,107,0,0.15); color:#ff6b00 !important; }
-            .mobile-menu-item.active i { color:#ff6b00 !important; }
-            .mobile-menu-panel.show { display:block !important; opacity:1 !important; transform:translateY(0) !important; }
-            @media (min-width: 992px) {
-                .mobile-menu-btn { display:none !important; }
-                .mobile-menu-panel { display:none !important; }
-                .desktop-nav { display:flex !important; align-items:center; gap:0.25rem; }
-            }
-            @media (max-width: 991.98px) {
-                .desktop-nav { display:none !important; }
-                .user-menu-toggle { display:none !important; }
-                .user-dropdown-menu { display:none !important; }
-            }
-        </style>`;
-
+            <div class="nav-mobile-menu" id="navMobileMenu">
+                <a class="nav-link ${page==='index.html'?'active':''}" href="index.html"><i class="fas fa-home"></i>Domů</a>
+                <a class="nav-link app-link ${page==='app.html'?'active':''}" href="#"><i class="fas fa-car"></i>Aplikace</a>
+                <a class="nav-link ${page==='leaderboard.html'?'active':''}" href="leaderboard.html"><i class="fas fa-trophy"></i>Žebříček</a>
+                ${mobileUserSection}
+            </div>
+        </nav>`;
     document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
     const nav = document.querySelector('.navbar');
     if (nav) window.addEventListener('scroll', ()=>nav.classList.toggle('scrolled',window.scrollY>50), {passive:true});
-
     document.querySelectorAll('.app-link').forEach(l=>{
         l.addEventListener('click',function(e){e.preventDefault();if(!getCurrentSession())showLoginRequiredModal();else window.location.href='app.html';});
     });
-    document.getElementById('logoutBtn')?.addEventListener('click',function(e){e.preventDefault();saveSession(null);window.location.href='index.html';});
-
-    // Custom dropdown toggle (works on ALL devices - no Bootstrap dropdown dependency)
-    const userToggle = document.querySelector('.user-menu-toggle');
-    const userMenu = document.querySelector('.user-dropdown-menu');
-    if (userToggle && userMenu) {
-        userToggle.addEventListener('click', function(e) {
-            e.preventDefault();
+    document.getElementById('logoutBtnDesktop')?.addEventListener('click',function(e){e.preventDefault();saveSession(null);window.location.href='index.html';});
+    document.getElementById('logoutBtnMobile')?.addEventListener('click',function(e){e.preventDefault();saveSession(null);window.location.href='index.html';});
+    const hamburger = document.getElementById('navHamburger');
+    const mobileMenu = document.getElementById('navMobileMenu');
+    if (hamburger && mobileMenu) {
+        hamburger.addEventListener('click', function(e) {
             e.stopPropagation();
-            const isOpen = userMenu.style.display === 'block';
-            // Close all other dropdowns first
-            document.querySelectorAll('.user-dropdown-menu').forEach(m => m.style.display = 'none');
-            userMenu.style.display = isOpen ? 'none' : 'block';
-            // Rotate chevron
-            const chevron = this.querySelector('.fa-chevron-down');
-            if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+            const isOpen = mobileMenu.classList.contains('open');
+            if (isOpen) {
+                mobileMenu.classList.remove('open');
+                hamburger.innerHTML = '<i class="fas fa-bars"></i>';
+            } else {
+                mobileMenu.classList.add('open');
+                hamburger.innerHTML = '<i class="fas fa-times"></i>';
+            }
         });
-        // Close dropdown when clicking outside
+        mobileMenu.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function() {
+                mobileMenu.classList.remove('open');
+                hamburger.innerHTML = '<i class="fas fa-bars"></i>';
+            });
+        });
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.user-menu-toggle') && !e.target.closest('.user-dropdown-menu')) {
-                userMenu.style.display = 'none';
-                const chevron = document.querySelector('.user-menu-toggle .fa-chevron-down');
-                if (chevron) chevron.style.transform = 'rotate(0deg)';
+            if (mobileMenu.classList.contains('open') && !e.target.closest('.navbar')) {
+                mobileMenu.classList.remove('open');
+                hamburger.innerHTML = '<i class="fas fa-bars"></i>';
             }
         });
     }
-
-    // Close mobile collapse menu when ANY nav link is clicked
-    document.querySelectorAll('#navbarMain .nav-link').forEach(l=>{
-        l.addEventListener('click', function() {
-            const c = document.getElementById('navbarMain');
-            if (c && c.classList.contains('show')) {
-                const bs = bootstrap.Collapse.getInstance(c);
-                if (bs) bs.hide();
-            }
+    const userBtn = document.getElementById('userMenuBtn');
+    const userDropdown = document.getElementById('userDropdown');
+    if (userBtn && userDropdown) {
+        userBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = userDropdown.classList.contains('show');
+            userDropdown.classList.toggle('show');
+            const chevron = this.querySelector('.fa-chevron-down');
+            if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
         });
-    });
+        userDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+        document.addEventListener('click', function() {
+            userDropdown.classList.remove('show');
+            const chevron = document.querySelector('#userMenuBtn .fa-chevron-down');
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        });
+    }
 }
 
 function updateNavbarXP() {
-    const u=getCurrentUser();if(!u)return;
-    const lv=getLevel(u.xp||0);const prog=getXPProgress(u.xp||0);
-    const fill=document.querySelector('.xp-bar-fill');const text=document.querySelector('.xp-text');
-    if(fill)fill.style.width=prog.progress+'%';
-    if(text)text.textContent=`Lv.${lv.level} ${lv.title}`;
-}
-
-// ==========================================
-// AUTH
-// ==========================================
-function handleLogin(email,password) {
-    const u=getUsers().find(x=>x.email===email&&x.password===password);
-    if(!u)return{success:false,message:'Nesprávný email nebo heslo.'};
-    saveSession({userId:u.id,email:u.email,name:u.name,isCEO:u.isCEO||false,loggedInAt:new Date().toISOString()});
-    return{success:true,message:'Přihlášení proběhlo úspěšně!',isCEO:u.isCEO};
-}
-function handleRegister(name,email,password) {
-    const users=getUsers();
-    if(users.find(u=>u.email===email))return{success:false,message:'Účet s tímto emailem již existuje.'};
-    if(email===CEO_EMAIL)return{success:false,message:'Tento email je již registrován.'};
-    const nu={id:generateId(),email,password,name,isCEO:false,registeredAt:new Date().toISOString(),xp:0,bestScore:0,achievements:[],streak:0,bestStreak:0,totalAnswered:0,avatar:''};
-    users.push(nu);saveUsers(users);
-    saveSession({userId:nu.id,email:nu.email,name:nu.name,isCEO:false,loggedInAt:new Date().toISOString()});
-    return{success:true,message:'Registrace proběhla úspěšně!',isCEO:false};
+    const u = getCurrentUser(); if (!u) return;
+    const lv = getLevel(u.xp||0); const prog = getXPProgress(u.xp||0);
+    const fill = document.querySelector('#userMenuBtn .user-xp-bar .fill');
+    if (fill) fill.style.width = prog.progress + '%';
+    const levelBadge = document.querySelector('#userMenuBtn .user-level');
+    if (levelBadge) levelBadge.textContent = 'Lv.' + lv.level;
+    const dropFill = document.querySelector('#userDropdown div[style*="background:linear-gradient"]');
+    if (dropFill) dropFill.style.width = prog.progress + '%';
+    const dropInfo = document.querySelector('#userDropdown div[style*="border-bottom"]');
+    if (dropInfo) {
+        const xpSpan = dropInfo.querySelector('div:nth-child(2)');
+        if (xpSpan) xpSpan.innerHTML = 'Lv.' + lv.level + ' ' + lv.title + ' &middot; ' + (u.xp||0) + ' XP';
+    }
 }
 
 // ==========================================
@@ -385,13 +651,13 @@ function renderProfile() {
     const ach=u.achievements||[];const ta=u.totalAnswered||0;
     if(ta>=10)checkAchievement('zelenac');if(ta>=15)checkAchievement('vytrvalec');
     const badges=[
-        {id:'zelenac',icon:'fa-seedling',label:'Zelenáč',desc:'10 otázek',unlocked:ach.includes('zelenac')},
-        {id:'vytrvalec',icon:'fa-person-running',label:'Vytrvalec',desc:'15 otázek',unlocked:ach.includes('vytrvalec')},
-        {id:'first_blood',icon:'fa-droplet',label:'První krev',desc:'1. správná',unlocked:ach.includes('first_blood')},
-        {id:'streak_5',icon:'fa-fire',label:'Pán Plamene',desc:'Streak 5',unlocked:ach.includes('streak_5')},
-        {id:'genius',icon:'fa-brain',label:'Génius',desc:'100% test',unlocked:ach.includes('genius')},
+        {id:'zelenac',icon:'fa-seedling',label:'Zelenáč',desc:'Odpověz na první otázku správně.',unlocked:ach.includes('zelenac')},
+        {id:'vytrvalec',icon:'fa-person-running',label:'Vytrvalec',desc:'Odpověz na 15 otázek za sebou.',unlocked:ach.includes('vytrvalec')},
+        {id:'first_blood',icon:'fa-droplet',label:'První krev',desc:'Odpověz na první otázku správně.',unlocked:ach.includes('first_blood')},
+        {id:'streak_5',icon:'fa-fire',label:'Pán Plamene',desc:'Odpověz na 5 otázek za sebou.',unlocked:ach.includes('streak_5')},
+        {id:'genius',icon:'fa-brain',label:'Génius',desc:'Odpověz na všechny otázky správně.',unlocked:ach.includes('genius')},
         {id:'clean_slate',icon:'fa-shield-halved',label:'Čistý štít',desc:'Opraveno vše',unlocked:ach.includes('clean_slate')},
-        {id:'speedster',icon:'fa-bolt',label:'Rychlík',desc:'<3s odpověď',unlocked:ach.includes('speedster')}
+        {id:'speedster',icon:'fa-bolt',label:'Rychlík',desc:'Odpověz na otázku za méně než 3 sekundy.',unlocked:ach.includes('speedster')}
     ];
     const lv=getLevel(u.xp||0);const prog=getXPProgress(u.xp||0);
     c.innerHTML=`<div class="row g-3"><div class="col-md-5"><div class="admin-card"><h3><i class="fas fa-user-cog me-2"></i>Upravit profil</h3>
@@ -400,15 +666,28 @@ function renderProfile() {
         <div class="mb-2"><label class="text-white-50 small mb-1">Email</label><input type="email" class="admin-input" id="profile-email" value="${u.email||''}"></div>
         <div class="mb-2"><label class="text-white-50 small mb-1">Nové heslo</label><input type="password" class="admin-input" id="profile-password" placeholder="Nové heslo"></div>
         <button type="submit" class="btn-autoskola w-100" style="font-size:0.85rem;"><i class="fas fa-save me-2"></i>Uložit</button></form></div></div>
-        <div class="col-md-7"><div class="admin-card"><h3><i class="fas fa-medal me-2"></i>Odznaky</h3>
+        <div class="col-md-6"><div class="admin-card"><h3><i class="fas fa-medal me-2"></i>Odznaky</h3>
         <p class="text-white-50 small mb-3">Zodpovězeno: <strong style="color:#ff6b00;">${ta}</strong> otázek</p>
-        <div class="row g-2">${badges.map(b=>`<div class="col-4 col-md-3 text-center"><div style="width:100%;aspect-ratio:1;border-radius:1rem;background:${b.unlocked?'rgba(255,107,0,0.2)':'rgba(255,255,255,0.05)'};border:2px solid ${b.unlocked?'rgba(255,107,0,0.4)':'rgba(255,255,255,0.06)'};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.5rem;${b.unlocked?'':'filter:grayscale(1);opacity:0.4;'}" title="${b.desc}"><i class="fas ${b.icon}" style="font-size:1.5rem;color:${b.unlocked?'#ff6b00':'rgba(255,255,255,0.3)'};"></i><span style="font-size:0.6rem;margin-top:0.3rem;color:${b.unlocked?'#ff6b00':'rgba(255,255,255,0.3)'};font-weight:600;">${b.label}</span></div></div>`).join('')}</div></div>
-        <div class="admin-card"><h3><i class="fas fa-chart-simple me-2"></i>Statistiky</h3>
-        <div class="row g-2 text-center"><div class="col-4"><div style="font-size:1.3rem;font-weight:900;color:#ff6b00;">${u.xp||0}</div><div class="text-white-50 small">XP</div></div>
-        <div class="col-4"><div style="font-size:1.3rem;font-weight:900;color:#22c55e;">${lv.title}</div><div class="text-white-50 small">Level ${lv.level}</div></div>
-        <div class="col-4"><div style="font-size:1.3rem;font-weight:900;color:#fbbf24;">${u.bestScore||0}%</div><div class="text-white-50 small">Nejlepší</div></div></div>
-        <div class="mt-2"><div class="progress-bar-custom" style="height:4px;"><div class="progress-fill" style="width:${prog.progress}%"></div></div><div class="text-white-50 small mt-1 text-center">${prog.xpInLevel} / ${prog.xpNeeded} XP do dalšího levelu</div></div></div></div></div>`;
-
+            <div class="badges-grid">${badges.map(b=>`<div class="achievement-card ${b.unlocked?'unlocked':'locked'}" title="${b.desc}"><i class="fas ${b.icon}" style="color:${b.unlocked?'#ff6b00':'rgba(255,255,255,0.3)'};"></i><div class="badge-text"><div class="badge-title">${b.label}</div><div class="badge-desc">${b.desc}</div></div></div>`).join('')}</div></div>
+                <div class="admin-card"><h3><i class="fas fa-chart-simple me-2"></i>Statistiky</h3>
+                <div class="profile-stats">
+                    <div class="stat-card">
+                        <div class="stat-value"><i class="fas fa-star stat-icon" style="color:#ff6b00;"></i>${u.xp||0}</div>
+                        <div class="stat-label">XP</div>
+                        <div class="stat-sub">Celkem</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value"><i class="fas fa-award stat-icon" style="color:#22c55e;"></i>${lv.title}</div>
+                        <div class="stat-label">Level</div>
+                        <div class="stat-sub">Lv. ${lv.level}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value"><i class="fas fa-chart-line stat-icon" style="color:#fbbf24;"></i>${u.bestScore||0}%</div>
+                        <div class="stat-label">Nejlepší</div>
+                        <div class="stat-sub">Skóre</div>
+                    </div>
+                </div>
+                <div class="mt-2"><div class="progress-bar-custom" style="height:4px;"><div class="progress-fill" style="width:${prog.progress}%"></div></div><div class="progress-info text-white-50 text-center">${prog.xpInLevel} / ${prog.xpNeeded} XP do dalšího levelu</div></div></div></div></div>`;
     document.getElementById('profile-form')?.addEventListener('submit',function(e){
         e.preventDefault();
         const n=document.getElementById('profile-name').value.trim();const em=document.getElementById('profile-email').value.trim();
@@ -433,44 +712,361 @@ function loadQuestions(gid,cat){
     if(cat==='wrong'){const ids=getWrongQuestionIds(gid);const a=getAllQuestionsForGroup(gid);return a.filter(q=>ids.includes(q.id));}
     return g.categories[cat]||[];
 }
-function getGroupProgress(gid){
-    const s=getCurrentSession();if(!s)return{total:0,answered:0,percentage:0};
-    const a=getAllQuestionsForGroup(gid);if(a.length===0)return{total:0,answered:0,percentage:0};
-    const p=JSON.parse(localStorage.getItem('autoskolaProProgress_'+s.userId)||'{}');const ids=p[gid]||[];
-    return{total:a.length,answered:ids.length,percentage:Math.round((ids.length/a.length)*100)};
+async function getRemoteGroupCount(){
+    const results = await Promise.all(REMOTE_TOPICS.map(async rt => {
+        try {
+            const info = await getRemoteTopicInfo(rt.topic);
+            return Number(info.total_questions) || null;
+        } catch (e) { return null; }
+    }));
+    const validCounts = results.filter(count => typeof count === 'number' && !Number.isNaN(count));
+    if (validCounts.length === 0) return null;
+    return validCounts.reduce((sum, value) => sum + value, 0);
+}
+async function getGroupProgress(gid){
+    const s=getCurrentSession();if(!s)return{total:0,answered:0,percentage:0,unknown:false};
+    const p=JSON.parse(localStorage.getItem('autoskolaProProgress_'+s.userId)||'{}');
+    const answered = Array.isArray(p[gid]) ? p[gid].length : 0;
+    if(gid==='group_online'){
+        const total = await getRemoteGroupCount();
+        const unknown = total === null;
+        return { total: unknown ? 0 : total, answered, percentage: unknown || total === 0 ? 0 : Math.round((answered/total)*100), unknown };
+    }
+    const a=getAllQuestionsForGroup(gid);if(a.length===0)return{total:0,answered:answered,percentage:0,unknown:false};
+    return{total:a.length,answered,percentage:Math.round((answered/a.length)*100),unknown:false};
 }
 function markQuestionAnswered(gid,qid){const s=getCurrentSession();if(!s)return;const k='autoskolaProProgress_'+s.userId;const d=JSON.parse(localStorage.getItem(k)||'{}');if(!d[gid])d[gid]=[];if(!d[gid].includes(qid))d[gid].push(qid);localStorage.setItem(k,JSON.stringify(d));}
+function getSeenQuestionIds(gid){const s=getCurrentSession();if(!s)return[];const d=JSON.parse(localStorage.getItem('autoskolaProProgress_'+s.userId)||'{}');return d[gid]||[];}
+function getUnseenQuestions(gid, categoryKey){const all = categoryKey === 'all' ? getAllQuestionsForGroup(gid) : loadQuestions(gid, categoryKey);const seen = new Set(getSeenQuestionIds(gid));return all.filter(q => !seen.has(q.id));}
+function getUnseenQuestionCount(gid, categoryKey){return getUnseenQuestions(gid, categoryKey).length;}
 function addWrongQuestion(gid,qid){const s=getCurrentSession();if(!s)return;const k='autoskolaProWrong_'+s.userId;const d=JSON.parse(localStorage.getItem(k)||'{}');if(!d[gid])d[gid]=[];if(!d[gid].includes(qid))d[gid].push(qid);localStorage.setItem(k,JSON.stringify(d));}
 function getWrongQuestionIds(gid){const s=getCurrentSession();if(!s)return[];const d=JSON.parse(localStorage.getItem('autoskolaProWrong_'+s.userId)||'{}');return d[gid]||[];}
 
 function renderProgressCircle(pct,size=36){const r=(size/2)-4;const c=2*Math.PI*r;const o=c-(pct/100)*c;return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${pct>0?'#22c55e':'rgba(255,255,255,0.08)'}" stroke-width="3" stroke-dasharray="${c}" stroke-dashoffset="${o}" transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset 0.5s ease;"/></svg>`;}
 
-function displayGroups(containerId) {
-    const c=document.getElementById(containerId);if(!c)return;const groups=loadGroups();
-    if(groups.length===0){c.innerHTML='<div class="empty-state"><i class="fas fa-folder-open"></i><p>Zatím žádné skupiny.</p></div>';return;}
-    c.innerHTML=groups.map(g=>{const p=getGroupProgress(g.id);return`<div class="group-card" data-group-id="${g.id}" style="padding:1rem;"><div style="display:flex;align-items:center;justify-content:space-between;"><div class="group-letter" style="font-size:1.5rem;">${g.letter}</div><div style="flex-shrink:0;">${renderProgressCircle(p.percentage,32)}</div></div><div class="group-name" style="font-size:0.8rem;">${g.name}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.3rem;"><span style="color:rgba(255,255,255,0.3);font-size:0.65rem;"><i class="fas fa-question-circle me-1"></i>${p.total} ot.</span><span style="color:${p.percentage>0?'#22c55e':'rgba(255,255,255,0.3)'};font-size:0.65rem;font-weight:600;">${p.percentage}%</span></div></div>`;}).join('');
-    c.querySelectorAll('.group-card').forEach(card=>{card.addEventListener('click',function(){testState.groupId=this.dataset.groupId;showCategorySelection(this.dataset.groupId);});});
+// ==========================================
+// DISPLAY GROUPS (v app.html)
+// ==========================================
+async function displayGroups(containerId) {
+    const c=document.getElementById(containerId);if(!c)return;
+    const groups=loadGroups();
+    // Přidáme "Dopravní značky" jako první skupinu
+    let html = '';
+    // Karta pro Dopravní značky
+    const signsData = getSignsData();
+    const signCount = signsData.signs.length;
+    html += `<div class="group-card" data-group-id="group_signs" style="border-color:rgba(255,107,0,0.3);background:linear-gradient(135deg,rgba(255,107,0,0.08),rgba(255,107,0,0.02));">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+            <div>
+                <div class="group-letter" style="font-size:2.5rem;"><i class="fas fa-traffic-light"></i></div>
+                <div class="group-name" style="font-weight:700;">Dopravní značky</div>
+            </div>
+            <div style="flex-shrink:0;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:var(--accent);">${signCount}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">značek</div>
+            </div>
+        </div>
+        <div class="group-details">
+            <span><i class="fas fa-image me-1"></i>Prohlížení a testy</span>
+            <span>${signsData.categories.length} kategorií</span>
+        </div>
+    </div>`;
+    // Ostatní skupiny
+    for (const g of groups) {
+        const p=await getGroupProgress(g.id);
+        const totalText = p.unknown ? '??' : p.total;
+        const completionText = p.unknown ? 'Načítám...' : `${p.percentage}%`;
+        html += `<div class="group-card" data-group-id="${g.id}"><div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;"><div><div class="group-letter">${g.letter}</div><div class="group-name">${g.name}</div></div><div style="flex-shrink:0;">${renderProgressCircle(p.unknown ? 0 : p.percentage,40)}</div></div><div class="group-details"><span><i class="fas fa-question-circle me-1"></i>${totalText} otázek</span><span>${completionText} dokončeno</span></div></div>`;
+    }
+    c.innerHTML = html;
+    c.querySelectorAll('.group-card').forEach(card=>{
+        card.addEventListener('click',function(){
+            const gid = this.dataset.groupId;
+            if (gid === 'group_signs') {
+                showSignCategories();
+            } else {
+                testState.groupId = gid;
+                showCategorySelection(gid);
+            }
+        });
+    });
 }
 
-function showCategorySelection(gid) {
-    const g=getAppData().groups.find(x=>x.id===gid);if(!g)return;
+// ==========================================
+// DOPRAVNÍ ZNAČKY - PROHLÍŽENÍ
+// ==========================================
+function showSignCategories() {
     const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results'),s5=document.getElementById('step-profile');
-    if(s1&&s2){s1.classList.add('d-none');s2.classList.remove('d-none');if(s3)s3.classList.add('d-none');if(s4)s4.classList.add('d-none');if(s5)s5.classList.add('d-none');}
     const con=document.getElementById('category-cards');if(!con)return;
-    let cats=[];Object.keys(g.categories).forEach(key=>{const cnt=(g.categories[key]||[]).length;let icon='fa-folder',label=key;if(key==='znacky'){icon='fa-traffic-light';label='Dopravní značky'}else if(key==='situace'){icon='fa-car-crash';label='Dopravní situace'}else{icon='fa-tag';label=key.charAt(0).toUpperCase()+key.slice(1)}cats.push({key,icon,name:label,count:cnt});});
-    cats.push({key:'all',icon:'fa-layer-group',name:'Všechny otázky',count:getAllQuestionsForGroup(gid).length});
-    const wc=getWrongQuestionIds(gid).length;if(wc>0)cats.push({key:'wrong',icon:'fa-exclamation-triangle',name:'Otázky, které neumím',count:wc});
-    con.innerHTML=cats.map(cat=>`<div class="category-card" data-category="${cat.key}" style="padding:1rem;"><div class="category-icon" style="font-size:1.5rem;margin-bottom:0.4rem;"><i class="fas ${cat.icon}"></i></div><h6 style="font-weight:700;font-size:0.8rem;margin-bottom:0.2rem;">${cat.name}</h6><span style="color:rgba(255,255,255,0.4);font-size:0.7rem;">${cat.count} ot.</span></div>`).join('');
-    con.querySelectorAll('.category-card').forEach(card=>{card.addEventListener('click',function(){testState.category=this.dataset.category;startTest(gid,this.dataset.category);});});
+    const data = getSignsData();
+    const cats = data.categories;
+    if (cats.length === 0) {
+        con.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Zatím žádné kategorie značek. CEO je může přidat v admin panelu.</p></div>';
+    } else {
+        con.innerHTML = cats.map(cat => {
+            const count = data.signs.filter(s => s.categoryId === cat.id).length;
+            return `<div class="category-card" data-sign-cat-id="${cat.id}">
+                <div class="category-icon"><i class="fas ${cat.icon || 'fa-triangle-exclamation'}"></i></div>
+                <div class="category-content">
+                    <div class="category-title">${cat.name}</div>
+                    <div class="category-desc">${count} značek</div>
+                </div>
+                <div class="category-count" style="display:flex;gap:0.25rem;flex-direction:column;align-items:flex-end;">
+                    <span>${count}</span>
+                    <button class="btn-autoskola btn-autoskola-sm" style="font-size:0.65rem;padding:0.15rem 0.5rem;" onclick="event.stopPropagation();startSignTest('${cat.id}')">
+                        <i class="fas fa-question-circle me-1"></i>Test
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+        con.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const catId = this.dataset.signCatId;
+                showSignsInCategory(catId);
+            });
+        });
+    }
+    if(s1&&s2){s1.classList.add('d-none');s2.classList.remove('d-none');if(s3)s3.classList.add('d-none');if(s4)s4.classList.add('d-none');if(s5)s5.classList.add('d-none');}
     document.getElementById('back-to-groups')?.addEventListener('click',function(){s1.classList.remove('d-none');s2.classList.add('d-none');testState.groupId=null;},{once:true});
 }
 
-function startTest(gid,cat){
-    let qs=loadQuestions(gid,cat);if(cat==='wrong'){const ids=getWrongQuestionIds(gid);qs=getAllQuestionsForGroup(gid).filter(q=>ids.includes(q.id));}
-    if(qs.length===0){showInfoModal('fa-info-circle','Žádné otázky','V této kategorii zatím nejsou žádné otázky.','Zpět',()=>{const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection');if(s1&&s2){s2.classList.add('d-none');s1.classList.remove('d-none');}});return;}
+function showSignsInCategory(catId) {
+    const data = getSignsData();
+    const cat = data.categories.find(c => c.id === catId);
+    if (!cat) return;
+    const signs = data.signs.filter(s => s.categoryId === catId);
+    const s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');
+    const con=document.getElementById('question-container');if(!con)return;
+    // Zobrazíme v test interface jako prohlížeč
+    if (signs.length === 0) {
+        con.innerHTML = `<div class="empty-state"><i class="fas fa-traffic-light"></i><p>Žádné značky v této kategorii.</p></div>`;
+    } else {
+        con.innerHTML = `<div style="text-align:center;margin-bottom:1rem;">
+            <h5 style="font-weight:800;font-size:1.1rem;"><i class="fas ${cat.icon || 'fa-triangle-exclamation'} me-2" style="color:var(--accent);"></i>${cat.name}</h5>
+            <p class="text-muted" style="font-size:0.8rem;">Kliknutím na značku zobrazíte detail</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">${signs.map(s => `
+            <div class="sign-card" onclick="showSignDetail('${s.id}')">
+                ${s.imageUrl ? `<img src="${s.imageUrl}" alt="${s.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23333%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ff6b00%22 font-size=%2230%22%3E⚠%3C/text%3E%3C/svg%3E';">` : `<div style="width:100px;height:100px;border-radius:0.75rem;background:rgba(255,107,0,0.1);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--accent);flex-shrink:0;"><i class="fas ${cat.icon || 'fa-triangle-exclamation'}"></i></div>`}
+                <div class="sign-info">
+                    <div class="sign-title">${s.name}</div>
+                    <div class="sign-desc">${s.description || 'Bez popisu'}</div>
+                </div>
+            </div>
+        `).join('')}</div>`;
+    }
+    if(s2&&s3){s2.classList.add('d-none');s3.classList.remove('d-none');}
+    // Nastavíme exit tlačítko pro prohlížení (bez once:true)
+    const exitBtn = document.getElementById('exit-test-btn');
+    if (exitBtn) {
+        exitBtn._handler = function(){s3.classList.add('d-none');s2.classList.remove('d-none');};
+        exitBtn.removeEventListener('click', exitBtn._handler);
+        exitBtn.addEventListener('click', exitBtn._handler);
+    }
+    document.getElementById('prev-question-btn')?.style.setProperty('display','none');
+    document.getElementById('next-question-btn')?.style.setProperty('display','none');
+}
+
+function showSignDetail(signId) {
+    const data = getSignsData();
+    const sign = data.signs.find(s => s.id === signId);
+    if (!sign) return;
+    const cat = data.categories.find(c => c.id === sign.categoryId);
+    const con=document.getElementById('question-container');if(!con)return;
+    con.innerHTML = `<div class="sign-viewer">
+        <button class="btn-autoskola btn-autoskola-sm btn-autoskola-outline" onclick="showSignsInCategory('${sign.categoryId}')" style="font-size:0.75rem;padding:0.3rem 0.8rem;margin-bottom:0.75rem;">
+            <i class="fas fa-arrow-left me-1"></i>Zpět na značky
+        </button>
+        ${sign.imageUrl ? `<img src="${sign.imageUrl}" alt="${sign.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23333%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ff6b00%22 font-size=%2230%22%3E⚠%3C/text%3E%3C/svg%3E';">` : `<div style="width:120px;height:120px;border-radius:1rem;background:rgba(255,107,0,0.1);display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--accent);margin:0 auto 1.5rem;"><i class="fas ${cat?.icon || 'fa-triangle-exclamation'}"></i></div>`}
+        <div class="sign-viewer-title">${sign.name}</div>
+        <div class="sign-viewer-desc">${sign.description || 'Bez popisu'}</div>
+        ${cat ? `<div style="margin-top:0.75rem;font-size:0.8rem;color:var(--text-muted);">Kategorie: ${cat.name}</div>` : ''}
+    </div>`;
+}
+
+// ==========================================
+// TEST Z DOPRAVNÍCH ZNAČEK
+// ==========================================
+function startSignTest(catId) {
+    const data = getSignsData();
+    const cat = data.categories.find(c => c.id === catId);
+    if (!cat) return;
+    const signs = data.signs.filter(s => s.categoryId === catId);
+    if (signs.length < 1) {
+        showInfoModal('fa-exclamation-circle', 'Málo značek', 'Pro test je potřeba alespoň 4 značky v kategorii.', 'OK');
+        return;
+    }
+    // Vytvoříme otázky: "Která značka je ...?" s 4 možnostmi
+    const questions = signs.map(sign => {
+        const others = signs.filter(s => s.id !== sign.id);
+        const shuffledOthers = others.sort(() => Math.random() - 0.5).slice(0, 3);
+        const options = [sign, ...shuffledOthers].sort(() => Math.random() - 0.5);
+        const correctIndex = options.findIndex(o => o.id === sign.id);
+        return {
+            id: sign.id,
+            question: `Která značka je tato?`,
+            imageUrl: sign.imageUrl,
+            options: options.map(o => o.name),
+            correctIndex,
+            explanation: sign.description || '',
+            category: 'signs'
+        };
+    });
+    const shuffled = questions.sort(() => Math.random() - 0.5).slice(0, Math.min(20, questions.length));
+    testState = { groupId: 'group_signs', category: catId, questions: shuffled, currentIndex: 0, score: 0, totalAnswered: 0, wrongQuestions: [], isReviewMode: false, answerTimestamps: [], answered: false };
+    const s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');
+    if(s2&&s3){s2.classList.add('d-none');s3.classList.remove('d-none');}
+    displayCurrentQuestion();
+    document.getElementById('prev-question-btn')?.style.removeProperty('display');
+    document.getElementById('next-question-btn')?.style.removeProperty('display');
+}
+
+// ==========================================
+// CATEGORY SELECTION (původní)
+// ==========================================
+async function showCategorySelection(gid) {
+    const g=getAppData().groups.find(x=>x.id===gid);if(!g)return;
+    const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results'),s5=document.getElementById('step-profile');
+    const con=document.getElementById('category-cards');if(!con)return;
+    let cats=[];
+    if (gid === 'group_online') {
+        const overlay = showLoadingScreen('Načítám online témata...');
+        try {
+            const topicInfos = await Promise.all(REMOTE_TOPICS.map(async rt => {
+                let info = null;
+                try { info = await getRemoteTopicInfo(rt.topic); } catch (e) { info = { total_questions: 0 }; }
+                return { key: rt.key, icon: rt.icon, name: rt.name, topic: rt.topic, info };
+            }));
+            const unknown = topicInfos.some(item => !item.info || !Number(item.info.total_questions));
+            const sumCount = unknown ? '??' : topicInfos.reduce((sum, item) => sum + (Number(item.info.total_questions) || 0), 0);
+            cats = topicInfos.map(item => ({ key: item.key, icon: item.icon, name: item.name, count: item.info && Number(item.info.total_questions) ? Number(item.info.total_questions) : '??' }));
+            cats.unshift({ key: 'remote_all', icon: 'fa-layer-group', name: 'Všechny otázky', count: unknown ? '??' : sumCount });
+        } catch (error) {
+            cats = REMOTE_TOPICS.map(rt => ({ key: rt.key, icon: rt.icon, name: rt.name, count: '??' }));
+            cats.unshift({ key: 'remote_all', icon: 'fa-layer-group', name: 'Všechny otázky', count: '??' });
+        } finally { if (overlay) overlay.remove(); }
+    } else {
+        Object.keys(g.categories).forEach(key=>{
+            const cnt=(g.categories[key]||[]).length;
+            const unknownCount=getUnseenQuestionCount(gid,key);
+            let icon='fa-folder'; let label=key;
+            if(key==='znacky'){icon='fa-traffic-light';label='Dopravní značky';}
+            else if(key==='situace'){icon='fa-car-crash';label='Dopravní situace';}
+            else{icon='fa-tag';label=key.charAt(0).toUpperCase()+key.slice(1);}
+            cats.push({key,icon,name:label,count:cnt,desc:`${cnt} otázek • ${unknownCount} neznámých`});
+        });
+        cats.push({key:'all',icon:'fa-layer-group',name:'Všechny otázky',count:getAllQuestionsForGroup(gid).length,desc:`Všechny otázky`});
+        const wc=getWrongQuestionIds(gid).length;
+        if(wc>0)cats.push({key:'wrong',icon:'fa-exclamation-triangle',name:'Otázky, které neumím',count:wc,desc:`Otázky, které jste již označil jako neumíte`});
+    }
+    con.innerHTML=cats.map(cat=>`<div class="category-card" data-category="${cat.key}"><div class="category-icon"><i class="fas ${cat.icon}"></i></div><div class="category-content"><div class="category-title">${cat.name}</div><div class="category-desc">${cat.desc||cat.count+' otázek'}</div></div><div class="category-count">${cat.count}</div></div>`).join('');
+    con.querySelectorAll('.category-card').forEach(card=>{card.addEventListener('click',function(){const category=this.dataset.category;if(gid !== 'group_online' && g.categories && g.categories[category]){chooseLocalCategoryMode(gid,category);}else{testState.category=category;startTest(gid,category);}});});
+    if(s1&&s2){s1.classList.add('d-none');s2.classList.remove('d-none');if(s3)s3.classList.add('d-none');if(s4)s4.classList.add('d-none');if(s5)s5.classList.add('d-none');}
+    document.getElementById('back-to-groups')?.addEventListener('click',function(){s1.classList.remove('d-none');s2.classList.add('d-none');testState.groupId=null;},{once:true});
+}
+
+async function chooseLocalCategoryMode(gid, categoryKey){
+    if (typeof Swal !== 'undefined') {
+        const categoryLabel = categoryKey === 'znacky' ? 'Dopravní značky' : categoryKey === 'situace' ? 'Dopravní situace' : categoryKey.charAt(0).toUpperCase()+categoryKey.slice(1);
+        const unseenCount = getUnseenQuestionCount(gid, categoryKey);
+        const result = await Swal.fire({
+            title: `Kategorie ${categoryLabel}`,
+            text: `Vyberte, zda chcete odpovídat na všechny otázky nebo pouze na neznámé.`,
+            icon: 'question',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Všechny otázky',
+            denyButtonText: `Neznámé (${unseenCount})`,
+            cancelButtonText: 'Zpět',
+            background:'#1a1a2e', color:'#fff', iconColor:'#fbbf24',
+            customClass:{popup:'animate__animated animate__fadeInDown'}
+        });
+        if (result.isConfirmed) { testState.category = categoryKey; return startTest(gid, categoryKey); }
+        if (result.isDenied) { testState.category = `${categoryKey}_unknown`; return startTest(gid, `${categoryKey}_unknown`); }
+        return;
+    }
+    testState.category = categoryKey;
+    return startTest(gid, categoryKey);
+}
+
+async function startTest(gid,cat){
+    if (cat.startsWith('remote_')) {
+        if (cat === 'remote_all') { await startRemoteTest(gid, 0, true); }
+        else { const topicId = parseInt(cat.split('_')[1], 10); await startRemoteTest(gid, topicId); }
+        return;
+    }
+    let qs;
+    if (cat === 'wrong') { const ids=getWrongQuestionIds(gid); qs=getAllQuestionsForGroup(gid).filter(q=>ids.includes(q.id)); }
+    else if (cat.endsWith('_unknown')) { const baseCat = cat.replace(/_unknown$/, ''); qs = getUnseenQuestions(gid, baseCat); }
+    else { qs = loadQuestions(gid,cat); }
+    if(qs.length===0){
+        const msg = cat.endsWith('_unknown') ? 'V této kategorii už nejsou žádné neznámé otázky.' : 'V této kategorii zatím nejsou žádné otázky.';
+        showInfoModal('fa-info-circle','Žádné otázky',msg,'Zpět',()=>{const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection');if(s1&&s2){s2.classList.add('d-none');s1.classList.remove('d-none');}});
+        return;
+    }
     const shuffled=[...qs].sort(()=>Math.random()-0.5);
     testState={groupId:gid,category:cat,questions:shuffled,currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false};
     showLoadingScreen(()=>{const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');if(s1&&s2&&s3){s1.classList.add('d-none');s2.classList.add('d-none');s3.classList.remove('d-none');}displayCurrentQuestion();});
+}
+
+async function startRemoteTest(gid, topicId, allTopics=false) {
+    let overlay = null;
+    try {
+        let totalAvailable = 0; let count = 25; let loadingText = '';
+        if (allTopics) {
+            try { const remoteCount = await getRemoteGroupCount(); totalAvailable = remoteCount || 0; count = Math.min(totalAvailable, 1200); loadingText = `Načítám ${count} online otázek...`; }
+            catch (e) { count = 1200; loadingText = 'Načítám 1200 online otázek...'; }
+        } else {
+            try { const info = await getRemoteTopicInfo(topicId); totalAvailable = Number(info.total_questions) || 0; count = Math.min(totalAvailable, 1200); loadingText = `Načítám ${count} online otázek...`; }
+            catch (e) { count = 200; loadingText = 'Načítám 200 online otázek...'; }
+        }
+        overlay = showLoadingScreen(loadingText);
+        const questions = await fetchRemoteQuestions(allTopics ? 0 : topicId, count);
+        if (overlay) overlay.remove();
+        if (!questions || questions.length === 0) {
+            showInfoModal('fa-info-circle','Žádné otázky','Nepodařilo se načíst online otázky.','Zpět',()=>{const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection');if(s1&&s2){s2.classList.add('d-none');s1.classList.remove('d-none');}});
+            return;
+        }
+        const shuffled = questions.sort(()=>Math.random()-0.5);
+        testState={groupId:gid,category:`remote_${topicId}`,questions:shuffled,currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false};
+        const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');
+        if(s1&&s2&&s3){s1.classList.add('d-none');s2.classList.add('d-none');s3.classList.remove('d-none');}
+        displayCurrentQuestion();
+    } catch (error) {
+        if (overlay) overlay.remove();
+        showInfoModal('fa-exclamation-circle','Chyba','Nepodařilo se načíst online otázky: '+error.message,'OK');
+    }
+}
+
+async function fetchRemoteQuestions(topicId, count=5) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT);
+    try {
+        const response = await fetch(`${API_URL}/remote-test?topic=${topicId}&count=${count}`, { signal: controller.signal });
+        if (!response.ok) { const text = await response.text(); throw new Error(text || `HTTP ${response.status}`); }
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Chyba při volání externího testu');
+        return result.questions.map(q => {
+            const answers = [
+                { text: q.correct_text, correct: true },
+                { text: q.wrong1_text, correct: false },
+                { text: q.wrong2_text, correct: false }
+            ].sort(() => Math.random() - 0.5);
+            const correctIndex = answers.findIndex(a => a.correct);
+            return {
+                id: q.question_id || `remote_${topicId}_${Math.random().toString(36).slice(2,8)}`,
+                question: q.question_text || 'Otázka není dostupná.',
+                imageUrl: q.question_media || '',
+                options: answers.map(a => a.text),
+                correctIndex,
+                category: 'remote',
+                explanation: ''
+            };
+        });
+    } catch (e) {
+        if (e.name === 'AbortError') throw new Error('Vypršel čas při načítání online otázky.');
+        throw e;
+    } finally { clearTimeout(timeoutId); }
 }
 
 function displayCurrentQuestion(){
@@ -494,12 +1090,13 @@ function handleAnswer(selectedIndex,elapsed=0){
     document.querySelectorAll('.option-btn').forEach(btn=>{btn.disabled=true;const idx=parseInt(btn.dataset.optionIndex);if(idx===q.correctIndex)btn.classList.add('correct');else if(idx===selectedIndex&&!correct)btn.classList.add('wrong');});
     testState.totalAnswered++;testState.answerTimestamps.push(elapsed);
     const user=getCurrentUser();if(user){const nt=(user.totalAnswered||0)+1;updateCurrentUser({totalAnswered:nt});if(nt>=10)checkAchievement('zelenac');if(nt>=15)checkAchievement('vytrvalec');}
+    markQuestionAnswered(testState.groupId,q.id);
     if(correct){
-        testState.score++;markQuestionAnswered(testState.groupId,q.id);addXP(10);updateStreak(true);AudioFX.play('correct');
+        testState.score++;addXP(10);updateStreak(true);
         if(testState.totalAnswered===1)checkAchievement('first_blood');if(elapsed<3)checkAchievement('speedster');
         const xi=document.getElementById('xp-info');if(xi){const s=getStreakDisplay();let h='<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.8rem;">';h+='<span style="color:#22c55e;"><i class="fas fa-check-circle me-1"></i>Správně! +10 XP</span>';if(s)h+=`<span class="streak-badge" style="font-size:0.75rem;">🔥 ${s.count}x ${s.text}</span>`;h+='</div>';xi.innerHTML=h;}
     }else{
-        addWrongQuestion(testState.groupId,q.id);updateStreak(false);AudioFX.play('wrong');
+        addWrongQuestion(testState.groupId,q.id);updateStreak(false);
         const expl=q.explanation||'Žádné vysvětlení k dispozici.';
         Swal.fire({icon:'error',title:'Špatně!',html:`<p style="margin-bottom:0.5rem;">Správná: <strong style="color:#22c55e;">${q.options[q.correctIndex].replace(/^[A-C]:\s*/,'')}</strong></p><div style="background:rgba(255,107,0,0.1);border-radius:0.75rem;padding:0.75rem;margin-top:0.5rem;text-align:left;"><small><i class="fas fa-lightbulb" style="color:#fbbf24;"></i> <strong>Tahák:</strong> ${expl}</small></div>`,timer:3000,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#ef4444',customClass:{popup:'animate__animated animate__bounceIn'}});
     }
@@ -513,7 +1110,7 @@ function showTestResults(){
     const{score,totalAnswered}=testState;const pct=totalAnswered>0?Math.round((score/totalAnswered)*100):0;const passed=pct>=70;
     const s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results');
     if(s3&&s4){s3.classList.add('d-none');s4.classList.remove('d-none');}
-    const user=getCurrentUser();if(user&&pct>(user.bestScore||0))updateCurrentUser({bestScore:pct});if(pct===100&&totalAnswered>0)checkAchievement('genius');if(passed)AudioFX.play('fanfare');
+    const user=getCurrentUser();if(user&&pct>(user.bestScore||0))updateCurrentUser({bestScore:pct});if(pct===100&&totalAnswered>0)checkAchievement('genius');
     document.getElementById('final-score')&&(document.getElementById('final-score').textContent=score);
     document.getElementById('final-total')&&(document.getElementById('final-total').textContent=totalAnswered);
     document.getElementById('final-percentage')&&(document.getElementById('final-percentage').textContent=pct+'%');
@@ -566,13 +1163,262 @@ function addNewGroup(letter,name){const data=getAppData();if(data.groups.find(g=
 function addNewQuestion(gid,cat,text,opts,ci,img,expl){const data=getAppData();const group=data.groups.find(g=>g.id===gid);if(!group)return{success:false,message:'Skupina nenalezena.'};if(!group.categories[cat])group.categories[cat]=[];const f=opts.map((opt,idx)=>{const l=String.fromCharCode(65+idx);return opt.startsWith(l+':')?opt:l+': '+opt;});group.categories[cat].push({id:generateId(),question:text,imageUrl:img||'',options:f,correctIndex:ci,category:cat,explanation:expl||''});saveAppData(data);const sel=document.getElementById('admin-group-select'),cs=document.getElementById('admin-category-select');if(sel&&cs)displayAdminQuestions(sel.value,cs.value);return{success:true,message:'Otázka přidána.'};}
 function deleteGroup(gid){const data=getAppData();const idx=data.groups.findIndex(g=>g.id===gid);if(idx===-1)return{success:false,message:'Skupina nenalezena.'};data.groups.splice(idx,1);saveAppData(data);return{success:true,message:'Skupina smazána.'};}
 function addNewCategory(key,label){const data=getAppData();if(data.availableCategories.includes(key))return{success:false,message:'Kategorie již existuje.'};data.availableCategories.push(key);data.groups.forEach(g=>{if(!g.categories[key])g.categories[key]=[];});saveAppData(data);return{success:true,message:`Kategorie "${label}" přidána.`};}
-function resetDatabase(){localStorage.removeItem(APP_DATA_KEY);localStorage.removeItem(APP_USERS_KEY);localStorage.removeItem(APP_SESSION_KEY);Object.keys(localStorage).forEach(k=>{if(k.startsWith('autoskolaProProgress_')||k.startsWith('autoskolaProWrong_')||k.startsWith('autoskolaProCorrectTrack_'))localStorage.removeItem(k);});initAppData();const users=getUsers();const ceo=users.find(u=>u.isCEO);if(ceo)saveSession({userId:ceo.id,email:ceo.email,name:ceo.name,isCEO:true,loggedInAt:new Date().toISOString()});}
+function resetDatabase(){localStorage.removeItem(APP_DATA_KEY);localStorage.removeItem(APP_USERS_KEY);localStorage.removeItem(APP_SESSION_KEY);localStorage.removeItem(APP_SIGNS_KEY);Object.keys(localStorage).forEach(k=>{if(k.startsWith('autoskolaProProgress_')||k.startsWith('autoskolaProWrong_')||k.startsWith('autoskolaProCorrectTrack_'))localStorage.removeItem(k);});initAppData();const users=getUsers();const ceo=users.find(u=>u.isCEO);if(ceo)saveSession({userId:ceo.id,email:ceo.email,name:ceo.name,isCEO:true,loggedInAt:new Date().toISOString()});}
+
+// ==========================================
+// ADMIN - DOPRAVNÍ ZNAČKY
+// ==========================================
+function initAdminSigns() {
+    renderSignCategories();
+    renderAdminSignsList();
+    
+    // Přidat kategorii
+    document.getElementById('add-sign-category-btn')?.addEventListener('click', function() {
+        const name = document.getElementById('sign-category-name').value.trim();
+        const icon = document.getElementById('sign-category-icon').value.trim() || 'fa-triangle-exclamation';
+        if (!name) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Zadejte název kategorie.', 'OK'); return; }
+        const r = addSignCategory(name, icon);
+        if (r.success) {
+            showInfoModal('fa-check-circle', 'Hotovo', r.message, 'OK');
+            document.getElementById('sign-category-name').value = '';
+            document.getElementById('sign-category-icon').value = 'fa-triangle-exclamation';
+            renderSignCategories();
+            renderAdminSignsList();
+        } else {
+            showInfoModal('fa-exclamation-circle', 'Chyba', r.message, 'OK');
+        }
+    });
+    
+    // Přidat značku
+    document.getElementById('add-sign-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const catId = document.getElementById('sign-category-select').value;
+        const name = document.getElementById('sign-name').value.trim();
+        const imageUrl = document.getElementById('sign-image').value.trim();
+        const description = document.getElementById('sign-description').value.trim();
+        if (!catId) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Vyberte kategorii.', 'OK'); return; }
+        if (!name) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Zadejte název značky.', 'OK'); return; }
+        const r = addSign(catId, name, imageUrl, description);
+        if (r.success) {
+            showInfoModal('fa-check-circle', 'Hotovo', r.message, 'OK');
+            document.getElementById('sign-name').value = '';
+            document.getElementById('sign-image').value = '';
+            document.getElementById('sign-description').value = '';
+            renderAdminSignsList();
+        } else {
+            showInfoModal('fa-exclamation-circle', 'Chyba', r.message, 'OK');
+        }
+    });
+    
+    // Filtr značek
+    document.getElementById('admin-sign-filter-category')?.addEventListener('change', renderAdminSignsList);
+}
+
+function renderSignCategories() {
+    const list = document.getElementById('sign-categories-list');
+    const select = document.getElementById('sign-category-select');
+    const filter = document.getElementById('admin-sign-filter-category');
+    if (!list) return;
+    const data = getSignsData();
+    const cats = data.categories;
+    if (cats.length === 0) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Zatím žádné kategorie značek.</p></div>';
+        if (select) select.innerHTML = '<option value="">Nejprve vytvořte kategorii</option>';
+        if (filter) filter.innerHTML = '<option value="">Všechny kategorie</option>';
+        return;
+    }
+    list.innerHTML = cats.map(c => {
+        const count = data.signs.filter(s => s.categoryId === c.id).length;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;background:rgba(255,255,255,0.03);border-radius:0.5rem;margin-bottom:0.35rem;border:1px solid rgba(255,255,255,0.05);">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                <i class="fas ${c.icon || 'fa-triangle-exclamation'}" style="color:var(--accent);width:20px;text-align:center;"></i>
+                <span style="font-weight:600;font-size:0.9rem;">${c.name}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);">(${count} značek)</span>
+            </div>
+            <button class="delete-btn" onclick="if(confirm('Smazat kategorii "${c.name}" i se všemi značkami?')){deleteSignCategory('${c.id}');renderSignCategories();renderAdminSignsList();}" style="padding:0.15rem 0.4rem;font-size:0.75rem;">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>`;
+    }).join('');
+    const opts = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if (select) select.innerHTML = '<option value="">Vyberte kategorii</option>' + opts;
+    if (filter) filter.innerHTML = '<option value="">Všechny kategorie</option>' + opts;
+}
+
+function renderAdminSignsList() {
+    const list = document.getElementById('admin-signs-list');
+    if (!list) return;
+    const data = getSignsData();
+    const filterCat = document.getElementById('admin-sign-filter-category')?.value || '';
+    let signs = data.signs;
+    if (filterCat) signs = signs.filter(s => s.categoryId === filterCat);
+    if (signs.length === 0) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-traffic-light"></i><p>Žádné značky.</p></div>';
+        return;
+    }
+    list.innerHTML = signs.map(s => {
+        const cat = data.categories.find(c => c.id === s.categoryId);
+        return `<div class="sign-card" style="cursor:default;">
+            ${s.imageUrl ? `<img src="${s.imageUrl}" alt="${s.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23333%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ff6b00%22 font-size=%2230%22%3E⚠%3C/text%3E%3C/svg%3E';">` : `<div style="width:60px;height:60px;border-radius:0.5rem;background:rgba(255,107,0,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--accent);flex-shrink:0;"><i class="fas ${cat?.icon || 'fa-triangle-exclamation'}"></i></div>`}
+            <div class="sign-info">
+                <div class="sign-title" style="font-size:0.9rem;">${s.name}</div>
+                <div class="sign-desc" style="font-size:0.75rem;">${s.description ? s.description.substring(0, 100) + (s.description.length > 100 ? '...' : '') : 'Bez popisu'}</div>
+                <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.2rem;">${cat ? cat.name : 'Bez kategorie'}</div>
+            </div>
+            <button class="delete-btn" onclick="if(confirm('Smazat značku "${s.name}"?')){deleteSign('${s.id}');renderAdminSignsList();}" style="padding:0.2rem 0.4rem;">
+                <i class="fas fa-trash-alt" style="font-size:0.8rem;"></i>
+            </button>
+        </div>`;
+    }).join('');
+}
+
+// ==========================================
+// ADMIN - UŽIVATELÉ A STATISTIKY
+// ==========================================
+async function renderAdminUsers() {
+    const tbody = document.getElementById('users-table-body');
+    if (!tbody) return;
+    try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        const users = data.users || [];
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td><div style="display:flex;align-items:center;gap:0.5rem;">
+                    <div class="user-avatar" style="width:28px;height:28px;font-size:0.7rem;">${u.name.charAt(0).toUpperCase()}</div>
+                    ${u.name}${u.isCEO ? ' <span style="font-size:0.65rem;color:var(--accent);font-weight:600;">👑 Developer</span>' : ''}
+                </div></td>
+                <td style="color:var(--text-muted);font-size:0.8rem;">${u.email}</td>
+                <td style="color:var(--text-muted);font-size:0.8rem;">${u.registered}</td>
+                <td><span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.75rem;font-weight:600;${u.active ? 'background:rgba(34,197,94,0.15);color:#22c55e;' : 'background:rgba(255,255,255,0.05);color:var(--text-muted);'}">${u.active ? `${u.tests} zodpovězeno` : `${u.tests} odpovědí`}</span></td>
+                <td style="text-align:right;">
+                    <button class="delete-btn" style="padding:0.2rem 0.5rem;font-size:0.75rem;background:rgba(255,107,0,0.12);color:var(--accent);" onclick="adminResetPassword('${u.id}')"><i class="fas fa-key"></i></button>
+                    <button class="delete-btn" style="padding:0.2rem 0.5rem;font-size:0.75rem;background:rgba(239,68,68,0.15);" onclick="adminDeleteUser('${u.id}','${u.name}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--error);padding:2rem;">❌ Chyba: ${e.message}</td></tr>`;
+    }
+}
+
+async function renderAdminProgress() {
+    const tbody = document.getElementById('progress-table-body');
+    if (!tbody) return;
+    try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        const users = (data.users || []).filter(u => !u.isCEO);
+        const medals = ['🥇', '🥈', '🥉'];
+        tbody.innerHTML = users.map((p, i) => `
+            <tr>
+                <td><span style="font-size:1.1rem;font-weight:700;">${medals[i] || `#${i+1}`}</span></td>
+                <td style="font-weight:500;">${p.name}</td>
+                <td style="font-weight:700;color:var(--accent);">${p.xp.toLocaleString()}</td>
+                <td>${p.score}%</td>
+                <td><div style="max-width:120px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(p.score,100)}%;background:${p.score >= 80 ? 'var(--success)' : p.score >= 60 ? 'var(--accent)' : 'var(--error)'};border-radius:3px;"></div></div></td>
+                <td>${p.tests}</td>
+            </tr>
+        `).join('');
+        const statsContainer = document.getElementById('stats-cards');
+        if (statsContainer) {
+            const statsRes = await fetch('/api/admin/stats');
+            const statsData = await statsRes.json();
+            if (statsData.success) {
+                const s = statsData.stats;
+                statsContainer.innerHTML = `
+                    <div class="admin-card" style="text-align:center;"><div class="stat-value" style="font-size:1.5rem;">${s.totalUsers}</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">Registrovaných</div></div>
+                    <div class="admin-card" style="text-align:center;"><div class="stat-value" style="font-size:1.5rem;">${s.avgScore}%</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">Prům. skóre</div></div>
+                    <div class="admin-card" style="text-align:center;"><div class="stat-value" style="font-size:1.5rem;">${s.totalTests}</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">Dokonč. testů</div></div>
+                    <div class="admin-card" style="text-align:center;"><div class="stat-value" style="font-size:1.5rem;">${s.topXp.toLocaleString()}</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">Nejvyšší XP</div></div>
+                `;
+            }
+        }
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--error);padding:2rem;">❌ Chyba: ${e.message}</td></tr>`;
+    }
+}
+
+function adminResetPassword(userId) {
+    const newPassword = prompt('Zadejte nové heslo (min. 6 znaků):');
+    if (!newPassword || newPassword.length < 6) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Heslo musí mít alespoň 6 znaků.', 'OK'); return; }
+    fetch(`/api/users/${userId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: newPassword }) })
+        .then(r => r.json()).then(d => { if (d.success) showInfoModal('fa-check-circle', 'Hotovo', 'Heslo bylo změněno.', 'OK'); else showInfoModal('fa-exclamation-circle', 'Chyba', d.message || 'Nepodařilo se změnit heslo.', 'OK'); });
+}
+
+async function adminDeleteUser(userId, userName) {
+    const result = await Swal.fire({ title: 'Smazat uživatele?', text: `Opravdu chcete smazat uživatele "${userName}"?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Smazat', cancelButtonText: 'Zrušit', confirmButtonColor: '#ef4444', background: '#1a1a2e', color: '#fff', iconColor: '#ef4444' });
+    if (!result.isConfirmed) return;
+    try {
+        const r = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (d.success) { showInfoModal('fa-check-circle', 'Smazáno', 'Uživatel byl smazán.', 'OK'); renderAdminUsers(); renderAdminProgress(); }
+        else showInfoModal('fa-exclamation-circle', 'Chyba', d.message || 'Nepodařilo se smazat uživatele.', 'OK');
+    } catch (e) { showInfoModal('fa-exclamation-circle', 'Chyba', e.message, 'OK'); }
+}
+
+// ==========================================
+// ADMIN RESET MODAL
+// ==========================================
+function initAdminReset() {
+    const resetBtn = document.getElementById('reset-db-btn');
+    const modal = document.getElementById('resetModal');
+    const modalInput = document.getElementById('modal-reset-input');
+    const modalConfirm = document.getElementById('modal-reset-confirm');
+    const modalClose = modal?.querySelector('.modal-close-btn');
+    const directInput = document.getElementById('reset-confirm-input');
+    const errorEl = document.getElementById('reset-error');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            const val = directInput?.value.trim().toUpperCase();
+            if (val !== 'SMAZAT') { if (errorEl) errorEl.style.display = 'block'; return; }
+            if (errorEl) errorEl.style.display = 'none';
+            if (modal) { modal.classList.add('active'); if (modalInput) modalInput.value = ''; }
+        });
+    }
+    if (directInput) { directInput.addEventListener('input', function() { if (errorEl) errorEl.style.display = 'none'; }); }
+    if (modalClose) { modalClose.addEventListener('click', function() { modal.classList.remove('active'); }); }
+    if (modal) { modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); }); }
+    if (modalConfirm) {
+        modalConfirm.addEventListener('click', function() {
+            const val = modalInput?.value.trim().toUpperCase();
+            if (val !== 'SMAZAT') { alert('Pro potvrzení napište SMAZAT'); return; }
+            resetDatabase();
+            modal.classList.remove('active');
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Resetováno', text: 'Databáze byla resetována.', timer: 2000, showConfirmButton: false, background: '#1a1a2e', color: '#fff' });
+            else alert('Databáze resetována');
+            setTimeout(() => location.reload(), 2000);
+        });
+    }
+}
 
 // ==========================================
 // ADMIN EVENTS
 // ==========================================
 function initializeAdminPanel(){
-    if(!checkAdminAccess())return;adminLoadGroups();
+    if(!checkAdminAccess())return;
+    adminLoadGroups();
+    initAdminSidebar();
+    renderAdminUsers();
+    renderAdminProgress();
+    initAdminReset();
+    initAdminSigns();
+
+    document.getElementById('announcement-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const text = document.getElementById('announcement-text').value.trim();
+        const duration = parseInt(document.getElementById('announcement-duration').value, 10) || 10;
+        if (!text) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Zpráva nesmí být prázdná.', 'OK'); return; }
+        const result = await apiPost('/announcement', { text, duration });
+        if (result.success) {
+            document.getElementById('announcement-text').value = '';
+            document.getElementById('last-announcement-preview').textContent = `"${text}" (${duration}s)`;
+            showAnnouncementBanner(text, duration);
+            showInfoModal('fa-check-circle', 'Odesláno', 'Oznámení bylo odesláno všem uživatelům.', 'OK');
+        } else showInfoModal('fa-exclamation-circle', 'Chyba', result.message || 'Nepodařilo se odeslat oznámení.', 'OK');
+    });
     document.getElementById('admin-filter-category')?.addEventListener('change',function(){displayAdminQuestions(document.getElementById('admin-group-select')?.value,this.value);});
     document.getElementById('add-group-form')?.addEventListener('submit',function(e){e.preventDefault();const l=document.getElementById('group-letter').value.trim().toUpperCase();const n=document.getElementById('group-name').value.trim();if(!l||!n){showInfoModal('fa-exclamation-circle','Chyba','Vyplňte všechna pole.','OK');return;}const r=addNewGroup(l,n);if(r.success){showInfoModal('fa-check-circle','Hotovo',r.message,'OK');document.getElementById('group-letter').value='';document.getElementById('group-name').value='';adminLoadGroups();}else showInfoModal('fa-exclamation-circle','Chyba',r.message,'OK');});
     document.getElementById('add-category-form')?.addEventListener('submit',function(e){e.preventDefault();const k=document.getElementById('category-key').value.trim().toLowerCase().replace(/\s+/g,'_');const l=document.getElementById('category-label').value.trim();if(!k||!l){showInfoModal('fa-exclamation-circle','Chyba','Vyplňte obě pole.','OK');return;}const r=addNewCategory(k,l);if(r.success){showInfoModal('fa-check-circle','Hotovo',r.message,'OK');document.getElementById('category-key').value='';document.getElementById('category-label').value='';adminLoadGroups();}else showInfoModal('fa-exclamation-circle','Chyba',r.message,'OK');});
@@ -582,23 +1428,134 @@ function initializeAdminPanel(){
 }
 
 // ==========================================
+// ADMIN SIDEBAR
+// ==========================================
+function initAdminSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const section = this.dataset.section;
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById('section-' + section);
+            if (target) target.classList.add('active');
+            if (window.innerWidth <= 768) sidebar.classList.remove('open');
+        });
+    });
+    if (toggle) { toggle.addEventListener('click', function() { sidebar.classList.toggle('open'); }); }
+}
+
+// ==========================================
+// ANNOUNCEMENTS
+// ==========================================
+function showAnnouncementBanner(text, duration) {
+    const old = document.querySelector('.announcement-banner');
+    if (old) old.remove();
+    const banner = document.createElement('div');
+    banner.className = 'announcement-banner';
+    banner.innerHTML = `
+        <div class="announcement-progress"><div class="announcement-progress-fill" style="animation-duration:${duration}s;"></div></div>
+        <div class="announcement-banner-inner">
+            <div class="announcement-banner-top">
+                <div class="announcement-banner-icon"><i class="fas fa-bullhorn"></i></div>
+                <div class="announcement-banner-text">${text}</div>
+                <button class="announcement-close-btn" title="Zavřít"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="announcement-banner-bottom">
+                <div class="announcement-timer">
+                    <span class="announcement-timer-number"><span class="announcement-timer-digit">${duration}</span></span>
+                    <span class="announcement-timer-label">s</span>
+                </div>
+            </div>
+        </div>`;
+    document.body.prepend(banner);
+    requestAnimationFrame(() => banner.classList.add('active'));
+    let remaining = duration;
+    const timerContainer = banner.querySelector('.announcement-timer-number');
+    const interval = setInterval(() => {
+        remaining--;
+        if (remaining >= 0 && timerContainer) {
+            const digit = timerContainer.querySelector('.announcement-timer-digit');
+            if (digit) {
+                digit.classList.remove('slide-in');
+                digit.classList.add('slide-out');
+                const newDigit = document.createElement('span');
+                newDigit.className = 'announcement-timer-digit slide-in';
+                newDigit.textContent = remaining;
+                timerContainer.appendChild(newDigit);
+                setTimeout(() => { if (digit.parentNode) digit.remove(); }, 350);
+            } else { timerContainer.textContent = remaining; }
+        }
+        if (remaining <= 0) { clearInterval(interval); banner.classList.remove('active'); setTimeout(() => banner.remove(), 400); }
+    }, 1000);
+    banner.querySelector('.announcement-close-btn').addEventListener('click', () => { clearInterval(interval); banner.classList.remove('active'); setTimeout(() => banner.remove(), 400); });
+}
+
+let announcementPollInterval = null;
+function startAnnouncementPolling() {
+    if (announcementPollInterval) clearInterval(announcementPollInterval);
+    announcementPollInterval = setInterval(async () => {
+        try {
+            const resp = await fetch('/api/announcement');
+            const data = await resp.json();
+            if (data.success && data.announcement) {
+                const existing = document.querySelector('.announcement-banner');
+                if (existing) {
+                    const timerEl = existing.querySelector('.announcement-timer-number');
+                    if (timerEl) timerEl.textContent = data.announcement.remaining;
+                } else { showAnnouncementBanner(data.announcement.text, data.announcement.remaining); }
+            }
+        } catch (e) {}
+    }, 3000);
+}
+
+// ==========================================
 // PAGES
 // ==========================================
 function initializeIndexPage(){document.getElementById('contact-form')?.addEventListener('submit',function(e){e.preventDefault();showInfoModal('fa-check-circle','Odesláno','Děkujeme za zprávu.','OK');this.reset();});}
-function initializeLoginPage(){document.getElementById('login-form')?.addEventListener('submit',function(e){e.preventDefault();const em=document.getElementById('login-email').value.trim();const pw=document.getElementById('login-password').value.trim();if(!em||!pw){showInfoModal('fa-exclamation-circle','Chyba','Vyplňte všechny údaje.','OK');return;}const r=handleLogin(em,pw);if(r.success){Swal.fire({icon:'success',title:'Přihlášen!',timer:1200,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#22c55e'}).then(()=>window.location.href='app.html');}else showInfoModal('fa-exclamation-circle','Chyba',r.message,'Zkusit znovu');});}
-function initializeRegisterPage(){document.getElementById('register-form')?.addEventListener('submit',function(e){e.preventDefault();const n=document.getElementById('register-name').value.trim();const em=document.getElementById('register-email').value.trim();const pw=document.getElementById('register-password').value.trim();const p2=document.getElementById('register-password-confirm').value.trim();if(!n||!em||!pw||!p2){showInfoModal('fa-exclamation-circle','Chyba','Vyplňte všechny údaje.','OK');return;}if(pw!==p2){showInfoModal('fa-exclamation-circle','Chyba','Hesla se neshodují.','OK');return;}if(pw.length<6){showInfoModal('fa-exclamation-circle','Chyba','Heslo min. 6 znaků.','OK');return;}const r=handleRegister(n,em,pw);if(r.success){Swal.fire({icon:'success',title:'Registrován!',timer:1200,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#22c55e'}).then(()=>window.location.href='app.html');}else showInfoModal('fa-exclamation-circle','Chyba',r.message,'Zkusit znovu');});}
 
-function initializeLeaderboardPage() {
-    // Loading overlay with trophy
+async function initializeLoginPage() {
+    document.getElementById('login-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const em = document.getElementById('login-email').value.trim();
+        const pw = document.getElementById('login-password').value.trim();
+        if (!em || !pw) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Vyplňte všechny údaje.', 'OK'); return; }
+        const r = await handleLogin(em, pw);
+        if (r.success) { Swal.fire({icon:'success',title:'Přihlášen!',timer:1200,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#22c55e'}).then(()=>window.location.href='app.html'); }
+        else { showInfoModal('fa-exclamation-circle', 'Chyba', r.message, 'Zkusit znovu'); }
+    });
+}
+
+async function initializeRegisterPage() {
+    document.getElementById('register-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const n = document.getElementById('register-name').value.trim();
+        const em = document.getElementById('register-email').value.trim();
+        const pw = document.getElementById('register-password').value.trim();
+        const p2 = document.getElementById('register-password-confirm').value.trim();
+        if (!n || !em || !pw || !p2) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Vyplňte všechny údaje.', 'OK'); return; }
+        if (pw !== p2) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Hesla se neshodují.', 'OK'); return; }
+        if (pw.length < 6) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Heslo min. 6 znaků.', 'OK'); return; }
+        const r = await handleRegister(n, em, pw);
+        if (r.success) { Swal.fire({icon:'success',title:'Registrován!',timer:1200,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#22c55e'}).then(()=>window.location.href='app.html'); }
+        else { showInfoModal('fa-exclamation-circle', 'Chyba', r.message, 'Zkusit znovu'); }
+    });
+}
+
+async function initializeLeaderboardPage() {
     const o = document.createElement('div'); o.className='loading-overlay active';
     o.innerHTML = `<div style="font-size:5rem;color:#fbbf24;animation:pulse 1.5s ease-in-out infinite;"><i class="fas fa-trophy"></i></div><div class="loading-text" style="font-size:1.2rem;margin-top:0.5rem;">Načítám žebříček...</div><div class="spinner" style="width:40px;height:40px;margin-top:1rem;"></div>`;
     document.body.appendChild(o);
-    setTimeout(() => { o.remove(); renderLeaderboard('leaderboard-container'); }, 1500);
+    await syncUsersFromDB();
+    setTimeout(() => { o.remove(); renderLeaderboard('leaderboard-container'); const syncText = document.getElementById('sync-text'); if (syncText) syncText.textContent = 'Data načtena ✓'; }, 200);
 }
 
-function initializeAppPage(){
+async function initializeAppPage(){
     if(!getCurrentSession()){showLoginRequiredModal();return;}
-    displayGroups('group-cards');
+    await displayGroups('group-cards');
     document.querySelectorAll('[data-tab]').forEach(tab=>{tab.addEventListener('click',function(){const t=this.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.tab-content').forEach(c=>c.classList.add('d-none'));document.getElementById(t)?.classList.remove('d-none');if(t==='step-profile')renderProfile();});});
     document.getElementById('exit-test-btn')?.addEventListener('click',function(){const s3=document.getElementById('step-test-interface'),s2=document.getElementById('step-category-selection');if(s3&&s2){s3.classList.add('d-none');s2.classList.remove('d-none');}});
     document.getElementById('prev-question-btn')?.addEventListener('click',previousQuestion);
@@ -613,7 +1570,7 @@ function createParticles(){if(document.querySelector('.particles'))return;const 
 // ==========================================
 // DOM READY
 // ==========================================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     initTheme();
     initAppData();
     AudioFX.init();
@@ -625,9 +1582,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (page && !page.includes('.')) page = page + '.html';
     if (!page || page === '.html') page = 'index.html';
 
+    if (page !== 'admin.html') { startAnnouncementPolling(); }
+
     if (page === 'login.html') initializeLoginPage();
     else if (page === 'register.html') initializeRegisterPage();
-    else if (page === 'app.html') initializeAppPage();
+    else if (page === 'app.html') await initializeAppPage();
     else if (page === 'admin.html') initializeAdminPanel();
     else if (page === 'leaderboard.html') initializeLeaderboardPage();
     else if (page === 'index.html' || page === '') initializeIndexPage();

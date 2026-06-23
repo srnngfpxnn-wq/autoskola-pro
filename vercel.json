@@ -12,13 +12,13 @@
     {
       "src": "*.js",
       "use": "@vercel/static"
-    },
-    {
-      "src": "*.json",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api-not-available.html"
+    },
     {
       "src": "/",
       "dest": "/index.html"

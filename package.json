@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "description": "Moderní testy pro autoškolu v češtině",
   "scripts": {
-    "dev": "lite-server",
-    "start": "lite-server"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "author": "Autoškola Pro",
   "license": "MIT",
-  "devDependencies": {
-    "lite-server": "^2.6.1"
+  "dependencies": {
+    "better-sqlite3": "^11.9.1",
+    "cors": "^2.8.6",
+    "express": "^4.21.2"
   }
 }

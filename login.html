@@ -5,113 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Přihlášení - Autoškola Pro</title>
     <meta name="description" content="Přihlaste se do Autoškoly Pro a začněte trénovat testy.">
-
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#ff6b00',
-                        'primary-dark': '#cc5500',
-                        'primary-light': '#ff8800',
-                        dark: '#0a0a0f',
-                        'dark-card': '#1a1a2e',
-                        'dark-surface': '#141423'
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <!-- Animate.css -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <!-- Custom Styles -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 </head>
 <body>
     <div class="animated-bg"></div>
     <div id="navbar-placeholder"></div>
 
     <div class="auth-container">
-        <div class="auth-card animate__animated animate__fadeInUp">
-            <div class="text-center mb-4">
-                <i class="fas fa-graduation-cap" style="color: #ff6b00; font-size: 2.5rem;"></i>
+        <div class="auth-card">
+            <div style="text-align:center;margin-bottom:2rem;">
+                <div style="font-size:2.5rem;color:var(--accent);margin-bottom:0.5rem;">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
                 <h2>Vítejte zpět</h2>
-                <p>Přihlaste se a pokračujte v tréninku</p>
+                <p>Přihlaste se ke svému účtu</p>
             </div>
-
-            <form id="login-form" class="contact-form">
-                <div class="mb-4">
-                    <label for="login-email" class="text-sm mb-2">Emailová adresa</label>
-                    <div class="input-group">
-                        <span class="input-group-text" style="background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.15); border-right: none; border-radius: 0.75rem 0 0 0.75rem; color: #ff6b00;">
-                            <i class="fas fa-envelope"></i>
-                        </span>
-                        <input type="email" id="login-email" placeholder="vas@email.cz" style="border-radius: 0 0.75rem 0.75rem 0;" required>
-                    </div>
+            <form id="login-form">
+                <div style="margin-bottom:1.25rem;">
+                    <label for="login-email" style="display:block;color:var(--text-secondary);font-weight:500;margin-bottom:0.5rem;font-size:0.9rem;">Email</label>
+                    <input type="email" id="login-email" placeholder="vas@email.cz" required style="width:100%;padding:0.875rem 1.25rem;background:var(--input-bg);border:1px solid var(--border-color);border-radius:0.75rem;color:var(--text-primary);font-size:1rem;transition:all 0.3s;">
                 </div>
-
-                <div class="mb-4">
-                    <label for="login-password" class="text-sm mb-2">Heslo</label>
-                    <div class="input-group">
-                        <span class="input-group-text" style="background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.15); border-right: none; border-radius: 0.75rem 0 0 0.75rem; color: #ff6b00;">
-                            <i class="fas fa-lock"></i>
-                        </span>
-                        <input type="password" id="login-password" placeholder="••••••••" style="border-radius: 0 0.75rem 0.75rem 0;" required>
-                    </div>
+                <div style="margin-bottom:1.5rem;">
+                    <label for="login-password" style="display:block;color:var(--text-secondary);font-weight:500;margin-bottom:0.5rem;font-size:0.9rem;">Heslo</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required style="width:100%;padding:0.875rem 1.25rem;background:var(--input-bg);border:1px solid var(--border-color);border-radius:0.75rem;color:var(--text-primary);font-size:1rem;transition:all 0.3s;">
                 </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="remember-me" style="border-color: rgba(255,107,0,0.3);">
-                        <label class="form-check-label text-white-50 small" for="remember-me">Zapamatovat si mě</label>
-                    </div>
-                    <a href="#" class="small" style="color: #ff6b00; text-decoration: none;">Zapomněli jste heslo?</a>
-                </div>
-
-                <button type="submit" class="btn-autoskola btn-autoskola-lg w-100 mb-3">
+                <button type="submit" class="btn-autoskola" style="width:100%;padding:1rem;font-size:1.05rem;">
                     <i class="fas fa-sign-in-alt me-2"></i>Přihlásit se
                 </button>
-
-                <div class="text-center">
-                    <p class="text-white-50 small mb-0">
-                        Ještě nemáte účet?
-                        <a href="register.html" style="color: #ff6b00; text-decoration: none; font-weight: 600;">Zaregistrujte se</a>
-                    </p>
-                </div>
-
-                <hr style="border-color: rgba(255,107,0,0.15); margin: 1.5rem 0;">
-
-                <div class="text-center">
-                    <p class="text-white-50 small mb-2">Demo přístup pro majitele:</p>
-                    <div class="small" style="color: rgba(255,255,255,0.4);">
-                        <i class="fas fa-envelope me-1" style="color: #ff6b00;"></i> scale.czsklol@gmail.com<br>
-                        <i class="fas fa-lock me-1" style="color: #ff6b00;"></i> kokotko123
-                    </div>
-                </div>
             </form>
+            <div style="text-align:center;margin-top:1.5rem;">
+                <p style="color:var(--text-muted);font-size:0.9rem;">
+                    Nemáte účet? <a href="register.html" style="color:var(--accent);text-decoration:none;font-weight:600;">Registrujte se</a>
+                </p>
+            </div>
         </div>
     </div>
 
-    <footer class="footer" style="position: fixed; bottom: 0; left: 0; right: 0;">
-        <div class="container">
-            <p class="mb-0">&copy; 2026 Autoškola Pro. Všechna práva vyhrazena.</p>
-        </div>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
 </body>
 </html>

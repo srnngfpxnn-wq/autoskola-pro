@@ -3,189 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Autoškola Pro</title>
+    <title>Admin - Autoškola Pro</title>
     <meta name="description" content="Administrace Autoškoly Pro.">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#ff6b00',
-                        'primary-dark': '#cc5500',
-                        'primary-light': '#ff8800',
-                        dark: '#0a0a0f',
-                        'dark-card': '#1a1a2e',
-                        'dark-surface': '#141423'
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 </head>
 <body>
     <div class="animated-bg"></div>
     <div id="navbar-placeholder"></div>
 
-    <div class="test-container" style="padding-top:5rem;">
-        <div class="container" style="max-width:1200px;">
+    <div class="admin-layout">
+        <!-- SIDEBAR -->
+        <aside class="admin-sidebar" id="adminSidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-shield-alt"></i>
+                <span>Admin panel</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="sidebar-section-label">Správa obsahu</div>
+                <a href="#" class="sidebar-link active" data-section="signs">
+                    <i class="fas fa-traffic-light"></i> Dopravní značky
+                </a>
+                <a href="#" class="sidebar-link" data-section="questions">
+                    <i class="fas fa-question-circle"></i> Otázky
+                </a>
+                <a href="#" class="sidebar-link" data-section="groups">
+                    <i class="fas fa-car"></i> Skupiny řidičáku
+                </a>
+                <a href="#" class="sidebar-link" data-section="categories">
+                    <i class="fas fa-tags"></i> Kategorie
+                </a>
 
-            <div class="text-center mb-4">
-                <span class="d-inline-block px-3 py-1 rounded-pill mb-2" style="background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.2);color:#ff6b00;font-size:0.8rem;font-weight:600;">
-                    <i class="fas fa-shield-alt me-2"></i>Administrace
-                </span>
-                <h3 class="fw-bold mb-2" style="background:linear-gradient(135deg,#fff,#ff6b00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Admin Panel</h3>
-                <p class="text-white-50 small">Správa skupin, kategorií a otázek</p>
+                <div class="sidebar-section-label">Uživatelé & Statistiky</div>
+                <a href="#" class="sidebar-link" data-section="users">
+                    <i class="fas fa-users"></i> Seznam uživatelů
+                </a>
+                <a href="#" class="sidebar-link" data-section="progress">
+                    <i class="fas fa-chart-bar"></i> Žebříček / Pokrok
+                </a>
+
+                <div class="sidebar-section-label">Komunikace & Systém</div>
+                <a href="#" class="sidebar-link" data-section="announcements">
+                    <i class="fas fa-bullhorn"></i> Živé oznámení
+                </a>
+                <a href="#" class="sidebar-link" data-section="settings">
+                    <i class="fas fa-cog"></i> Nastavení & Údržba
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MOBILE SIDEBAR TOGGLE -->
+        <button class="sidebar-mobile-toggle" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- MAIN CONTENT -->
+        <main class="admin-main">
+
+            <!-- ============ SEKC: DOPRAVNÍ ZNAČKY ============ -->
+            <div class="admin-section active" id="section-signs">
+                <h2 class="admin-section-title"><i class="fas fa-traffic-light"></i> Dopravní značky</h2>
+
+                <!-- Kategorie značek -->
+                <div class="admin-card">
+                    <h3><i class="fas fa-folder-plus me-2"></i>Kategorie značek</h3>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
+                        <div style="flex:1;min-width:200px;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Název kategorie</label>
+                            <input type="text" id="sign-category-name" class="admin-input" placeholder="např. Výstražné značky">
+                        </div>
+                        <div style="flex:1;min-width:200px;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Ikona (FontAwesome)</label>
+                            <input type="text" id="sign-category-icon" class="admin-input" value="fa-triangle-exclamation" placeholder="fa-triangle-exclamation">
+                        </div>
+                        <div style="display:flex;align-items:flex-end;">
+                            <button class="btn-autoskola btn-autoskola-sm" id="add-sign-category-btn">
+                                <i class="fas fa-plus me-1"></i>Přidat kategorii
+                            </button>
+                        </div>
+                    </div>
+                    <div id="sign-categories-list" style="margin-top:0.5rem;">
+                        <div class="empty-state"><i class="fas fa-folder-open"></i><p>Zatím žádné kategorie značek.</p></div>
+                    </div>
+                </div>
+
+                <!-- Přidat značku -->
+                <div class="admin-card">
+                    <h3><i class="fas fa-plus-circle me-2"></i>Přidat dopravní značku</h3>
+                    <form id="add-sign-form">
+                        <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.75rem;">
+                            <div style="flex:1;min-width:200px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Kategorie</label>
+                                <select id="sign-category-select" class="admin-select styled-select">
+                                    <option value="">Nejprve vytvořte kategorii</option>
+                                </select>
+                            </div>
+                            <div style="flex:2;min-width:250px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Název značky</label>
+                                <input type="text" id="sign-name" class="admin-input" placeholder="např. Křižovatka s vedlejší komunikací">
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.75rem;">
+                            <div style="flex:1;min-width:200px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Obrázek (URL)</label>
+                                <input type="url" id="sign-image" class="admin-input" placeholder="https://example.com/znacka.png">
+                            </div>
+                        </div>
+                        <div style="margin-bottom:0.75rem;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Popis / význam značky</label>
+                            <textarea id="sign-description" class="admin-input" rows="2" placeholder="Co značka znamená, kdy se používá..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-autoskola btn-autoskola-sm"><i class="fas fa-save me-1"></i>Přidat značku</button>
+                    </form>
+                </div>
+
+                <!-- Seznam značek -->
+                <div class="admin-card">
+                    <h3><i class="fas fa-list me-2"></i>Seznam značek</h3>
+                    <div style="margin-bottom:0.75rem;">
+                        <select id="admin-sign-filter-category" class="admin-select styled-select" style="max-width:300px;">
+                            <option value="">Všechny kategorie</option>
+                        </select>
+                    </div>
+                    <div id="admin-signs-list">
+                        <div class="empty-state"><i class="fas fa-traffic-light"></i><p>Zatím žádné značky.</p></div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Group Tabs -->
-            <div class="mb-4">
-                <ul class="nav nav-pills justify-content-center gap-2 flex-wrap" id="admin-group-tabs"></ul>
+            <!-- ============ SEKC: OTÁZKY ============ -->
+            <div class="admin-section" id="section-questions">
+                <h2 class="admin-section-title"><i class="fas fa-question-circle"></i> Správa otázek</h2>
+                <div class="admin-card">
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+                        <select id="admin-group-select" class="admin-select styled-select" style="flex:1;min-width:150px;">
+                            <option value="">Vyberte skupinu</option>
+                        </select>
+                        <select id="admin-category-select" class="admin-select styled-select" style="flex:1;min-width:150px;" disabled>
+                            <option value="">Nejprve vyberte skupinu</option>
+                        </select>
+                        <select id="admin-filter-category" class="admin-select styled-select" style="flex:1;min-width:150px;">
+                            <option value="">Všechny kategorie</option>
+                        </select>
+                    </div>
+                    <div id="admin-questions-list">
+                        <div class="empty-state">
+                            <i class="fas fa-arrow-left"></i>
+                            <p>Vyberte skupinu.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="admin-section-title" style="margin-top:2rem;"><i class="fas fa-plus-circle"></i> Přidat otázku</h2>
+                <div class="admin-card">
+                    <form id="add-question-form">
+                        <div style="margin-bottom:0.75rem;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Otázka</label>
+                            <textarea id="question-text" class="admin-input" rows="2" placeholder="Znění otázky..."></textarea>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
+                            <div style="flex:1;min-width:150px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Odpověď A</label>
+                                <input type="text" id="option-a" class="admin-input" placeholder="Odpověď A">
+                            </div>
+                            <div style="flex:1;min-width:150px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Odpověď B</label>
+                                <input type="text" id="option-b" class="admin-input" placeholder="Odpověď B">
+                            </div>
+                            <div style="flex:1;min-width:150px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Odpověď C</label>
+                                <input type="text" id="option-c" class="admin-input" placeholder="Odpověď C">
+                            </div>
+                        </div>
+                        <div style="margin-bottom:0.75rem;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Správná odpověď</label>
+                            <div style="display:flex;gap:1rem;">
+                                <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;color:var(--text-primary);"><input type="radio" name="correct-answer" value="0"> A</label>
+                                <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;color:var(--text-primary);"><input type="radio" name="correct-answer" value="1"> B</label>
+                                <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;color:var(--text-primary);"><input type="radio" name="correct-answer" value="2"> C</label>
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.75rem;">
+                            <div style="flex:1;min-width:200px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Obrázek (URL)</label>
+                                <input type="url" id="question-image" class="admin-input" placeholder="https://...">
+                            </div>
+                            <div style="flex:2;min-width:200px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Vysvětlení</label>
+                                <input type="text" id="question-explanation" class="admin-input" placeholder="Proč je to správně...">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-autoskola btn-autoskola-sm"><i class="fas fa-save me-1"></i>Přidat otázku</button>
+                    </form>
+                </div>
             </div>
 
-            <div class="row g-3">
-                <!-- LEFT COL -->
-                <div class="col-lg-4">
-                    <!-- Add Group -->
+            <!-- ============ SEKC: SKUPINY ============ -->
+            <div class="admin-section" id="section-groups">
+                <h2 class="admin-section-title"><i class="fas fa-car"></i> Skupiny řidičáku</h2>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                     <div class="admin-card">
                         <h3><i class="fas fa-plus-circle me-2"></i>Přidat skupinu</h3>
                         <form id="add-group-form">
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Označení</label>
-                                <input type="text" class="admin-input" id="group-letter" placeholder="např. D" maxlength="3" style="text-transform:uppercase;">
+                            <div style="margin-bottom:0.75rem;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Písmeno (B, C, AM...)</label>
+                                <input type="text" id="group-letter" class="admin-input" placeholder="B" maxlength="3" style="width:80px;">
                             </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Název</label>
-                                <input type="text" class="admin-input" id="group-name" placeholder="Autobusy">
+                            <div style="margin-bottom:0.75rem;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Název</label>
+                                <input type="text" id="group-name" class="admin-input" placeholder="Osobní automobily">
                             </div>
-                            <button type="submit" class="btn-autoskola w-100" style="font-size:0.85rem;"><i class="fas fa-plus me-2"></i>Přidat</button>
+                            <button type="submit" class="btn-autoskola btn-autoskola-sm"><i class="fas fa-plus me-1"></i>Přidat</button>
                         </form>
                     </div>
-
-                    <!-- Add Category -->
                     <div class="admin-card">
-                        <h3><i class="fas fa-tag me-2"></i>Přidat kategorii</h3>
-                        <p class="text-white-50 small mb-2">Kategorie se přidá ke všem skupinám (např. "Dopravní předpisy")</p>
-                        <form id="add-category-form">
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Klíč (anglicky, bez mezer)</label>
-                                <input type="text" class="admin-input" id="category-key" placeholder="např. predpisy">
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Název</label>
-                                <input type="text" class="admin-input" id="category-label" placeholder="Dopravní předpisy">
-                            </div>
-                            <button type="submit" class="btn-autoskola w-100" style="font-size:0.85rem;background:linear-gradient(135deg,#8b5cf6,#7c3aed);">
-                                <i class="fas fa-plus me-2"></i>Přidat kategorii
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- Delete Group -->
-                    <div class="admin-card">
-                        <h3 style="color:#ef4444;"><i class="fas fa-trash-alt me-2"></i>Smazat skupinu</h3>
-                        <div class="mb-2">
-                            <select class="admin-select" id="admin-delete-group-select">
-                                <option value="">Vyberte skupinu</option>
-                            </select>
-                        </div>
-                        <button class="btn-autoskola w-100" id="delete-group-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);font-size:0.85rem;">
-                            <i class="fas fa-trash-alt me-2"></i>Smazat
+                        <h3><i class="fas fa-trash me-2"></i>Smazat skupinu</h3>
+                        <select id="admin-delete-group-select" class="admin-select styled-select" style="margin-bottom:0.75rem;">
+                            <option value="">Vyberte skupinu</option>
+                        </select>
+                        <button class="btn-autoskola btn-autoskola-sm" id="delete-group-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+                            <i class="fas fa-trash me-1"></i>Smazat
                         </button>
-                    </div>
-
-                    <!-- Reset Database -->
-                    <div class="admin-card" style="border-color:rgba(239,68,68,0.3);">
-                        <h3 style="color:#ef4444;"><i class="fas fa-exclamation-triangle me-2"></i>Reset databáze</h3>
-                        <p class="text-white-50 small mb-2">Smaže všechny otázky, uživatele, pokrok a obnoví výchozí data.</p>
-                        <button class="btn-autoskola w-100" id="reset-db-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);font-size:0.85rem;">
-                            <i class="fas fa-skull-crossbones me-2"></i>Resetovat databázi
-                        </button>
-                    </div>
-                </div>
-
-                <!-- MIDDLE COL -->
-                <div class="col-lg-4">
-                    <div class="admin-card">
-                        <h3><i class="fas fa-question-circle me-2"></i>Přidat otázku</h3>
-                        <form id="add-question-form">
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Skupina</label>
-                                <select class="admin-select" id="admin-group-select"><option value="">Vyberte</option></select>
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Kategorie</label>
-                                <select class="admin-select" id="admin-category-select" disabled><option value="">Nejprve vyberte skupinu</option></select>
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Text otázky</label>
-                                <textarea class="admin-input" id="question-text" rows="2" placeholder="Zadejte otázku..."></textarea>
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">URL obrázku (nepovinné)</label>
-                                <input type="url" class="admin-input" id="question-image" placeholder="https://...">
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">Tahák / Vysvětlení (nepovinné)</label>
-                                <textarea class="admin-input" id="question-explanation" rows="2" placeholder="Vysvětlení správné odpovědi..."></textarea>
-                            </div>
-                            <hr style="border-color:rgba(255,107,0,0.15);margin:0.75rem 0;">
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">A 
-                                    <input type="radio" name="correct-answer" value="0" style="accent-color:#ff6b00;transform:scale(0.85);">
-                                </label>
-                                <input type="text" class="admin-input" id="option-a" placeholder="Možnost A" style="font-size:0.85rem;">
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">B 
-                                    <input type="radio" name="correct-answer" value="1" style="accent-color:#ff6b00;transform:scale(0.85);">
-                                </label>
-                                <input type="text" class="admin-input" id="option-b" placeholder="Možnost B" style="font-size:0.85rem;">
-                            </div>
-                            <div class="mb-2">
-                                <label class="text-white-50 small mb-1">C 
-                                    <input type="radio" name="correct-answer" value="2" style="accent-color:#ff6b00;transform:scale(0.85);">
-                                </label>
-                                <input type="text" class="admin-input" id="option-c" placeholder="Možnost C" style="font-size:0.85rem;">
-                            </div>
-                            <div class="small text-white-50 mb-2"><i class="fas fa-info-circle me-1" style="color:#ff6b00;"></i>Označte správnou odpověď.</div>
-                            <button type="submit" class="btn-autoskola w-100" style="font-size:0.85rem;"><i class="fas fa-save me-2"></i>Přidat otázku</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- RIGHT COL -->
-                <div class="col-lg-4">
-                    <div class="admin-card">
-                        <h3><i class="fas fa-list me-2"></i>Seznam otázek</h3>
-                        <div class="mb-2">
-                            <label class="text-white-50 small mb-1">Kategorie</label>
-                            <select class="admin-select" id="admin-filter-category">
-                                <option value="">Všechny</option>
-                                <option value="znacky">Dopravní značky</option>
-                                <option value="situace">Dopravní situace</option>
-                            </select>
-                        </div>
-                        <div id="admin-questions-list" style="max-height:500px;overflow-y:auto;">
-                            <div class="empty-state"><i class="fas fa-arrow-left"></i><p>Klikněte na skupinu nahoře.</p></div>
-                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- ============ SEKC: KATEGORIE ============ -->
+            <div class="admin-section" id="section-categories">
+                <h2 class="admin-section-title"><i class="fas fa-tags"></i> Kategorie</h2>
+                <div class="admin-card">
+                    <h3><i class="fas fa-tag me-2"></i>Přidat kategorii</h3>
+                    <form id="add-category-form">
+                        <div style="margin-bottom:0.75rem;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Klíč (např. znacky, situace)</label>
+                            <input type="text" id="category-key" class="admin-input" placeholder="napr. situace">
+                        </div>
+                        <div style="margin-bottom:0.75rem;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Popisek</label>
+                            <input type="text" id="category-label" class="admin-input" placeholder="Dopravní situace">
+                        </div>
+                        <button type="submit" class="btn-autoskola btn-autoskola-sm"><i class="fas fa-plus me-1"></i>Přidat</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ============ SEKC: UŽIVATELÉ ============ -->
+            <div class="admin-section" id="section-users">
+                <h2 class="admin-section-title"><i class="fas fa-users"></i> Seznam uživatelů</h2>
+                <div class="admin-card" style="overflow-x:auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Jméno</th>
+                                <th>Email</th>
+                                <th>Registrace</th>
+                                <th>Aktivní testy</th>
+                                <th style="text-align:right;">Akce</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- data se vykreslí JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ============ SEKC: PROGRESS / STATS ============ -->
+            <div class="admin-section" id="section-progress">
+                <h2 class="admin-section-title"><i class="fas fa-chart-bar"></i> Žebříček / Pokrok</h2>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;" id="stats-cards">
+                </div>
+                <div class="admin-card" style="overflow-x:auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Jméno</th>
+                                <th>XP</th>
+                                <th>Skóre</th>
+                                <th>Úspěšnost</th>
+                                <th>Testů</th>
+                            </tr>
+                        </thead>
+                        <tbody id="progress-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ============ SEKC: OZNÁMENÍ ============ -->
+            <div class="admin-section" id="section-announcements">
+                <h2 class="admin-section-title"><i class="fas fa-bullhorn"></i> Živé oznámení</h2>
+                <div class="admin-card">
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem;">Odešli oznámení všem uživatelům. Zobrazí se jako banner s odpočtem.</p>
+                    <form id="announcement-form">
+                        <div style="margin-bottom:0.75rem;">
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Zpráva</label>
+                            <textarea id="announcement-text" class="admin-input" rows="2" placeholder="Napiš oznámení..." style="resize:vertical;"></textarea>
+                        </div>
+                        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                            <div style="flex:1;min-width:120px;">
+                                <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:0.3rem;">Doba trvání (s)</label>
+                                <input type="number" id="announcement-duration" class="admin-input" value="10" min="3" max="60" style="width:80px;">
+                            </div>
+                            <button type="submit" class="btn-autoskola btn-autoskola-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+                                <i class="fas fa-paper-plane me-1"></i>Odeslat oznámení
+                            </button>
+                        </div>
+                    </form>
+                    <div style="margin-top:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.03);border-radius:0.5rem;border:1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem;"><i class="fas fa-history me-1"></i>Poslední odeslaná:</div>
+                        <div id="last-announcement-preview" style="font-size:0.85rem;color:var(--text-primary);font-style:italic;">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ SEKC: NASTAVENÍ ============ -->
+            <div class="admin-section" id="section-settings">
+                <h2 class="admin-section-title"><i class="fas fa-cog"></i> Nastavení & Údržba</h2>
+                <div class="admin-card">
+                    <h3 style="color:#ef4444;"><i class="fas fa-exclamation-triangle me-2"></i>Reset databáze</h3>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem;">Vymaže všechny uživatele, otázky a pokrok. Tuto akci nelze vrátit! Pro potvrzení napište <strong>SMAZAT</strong>.</p>
+                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="reset-confirm-input" class="admin-input" placeholder="Napiš SMAZAT" style="max-width:200px;">
+                        <button class="btn-autoskola btn-autoskola-sm" id="reset-db-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+                            <i class="fas fa-bomb me-1"></i>Resetovat vše
+                        </button>
+                    </div>
+                    <div id="reset-error" style="color:#ef4444;font-size:0.8rem;margin-top:0.5rem;display:none;">Pro potvrzení napište SMAZAT do pole výše.</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL PRO SMAZAT -->
+    <div class="modal-overlay" id="resetModal">
+        <div class="modal-content">
+            <div class="modal-icon"><i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i></div>
+            <h3>🔴 Reset databáze</h3>
+            <p>Tato akce je nevratná! Všechna data budou ztracena.</p>
+            <p style="margin-bottom:1rem;font-size:0.85rem;color:var(--text-muted);">Pro potvrzení napište <strong style="color:#ef4444;">SMAZAT</strong> a klikněte na tlačítko.</p>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                <input type="text" id="modal-reset-input" class="admin-input" placeholder="Napiš SMAZAT" style="max-width:180px;text-align:center;">
+            </div>
+            <div style="display:flex;gap:0.75rem;justify-content:center;margin-top:1.5rem;">
+                <button class="btn-autoskola btn-autoskola-sm btn-autoskola-outline modal-close-btn">Zrušit</button>
+                <button class="btn-autoskola btn-autoskola-sm" id="modal-reset-confirm" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+                    <i class="fas fa-bomb me-1"></i>Trvale smazat vše
+                </button>
+            </div>
         </div>
     </div>
 
-    <footer class="footer" style="padding:1rem 0;">
-        <div class="container"><p class="mb-0">&copy; 2026 Autoškola Pro</p></div>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
 </body>
 </html>
