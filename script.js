@@ -352,6 +352,7 @@ function getStreakDisplay() {
 // AUTH
 // ==========================================
 async function handleLogin(email, password) {
+    // 1. Zkusit server
     const result = await apiPost('/login', { email, password });
     if (result.success) {
         const u = result.user;
@@ -363,10 +364,26 @@ async function handleLogin(email, password) {
         saveSession({userId: u.id, email: u.email, name: u.name, isCEO: u.isCEO, loggedInAt: new Date().toISOString()});
         return {success: true, message: 'Přihlášení proběhlo úspěšně!', isCEO: u.isCEO};
     }
+    
+    // 2. Pokud server neodpovídá (např. Render.com restart), zkusit lokální data
+    const localUsers = getUsers();
+    const localUser = localUsers.find(u => u.email === email && u.password === password);
+    if (localUser) {
+        // CEO účet vytvoříme lokálně pokud neexistuje
+        if (email === CEO_EMAIL && password === CEO_PASSWORD && !localUser.isCEO) {
+            localUser.isCEO = true;
+        }
+        saveSession({userId: localUser.id, email: localUser.email, name: localUser.name, isCEO: localUser.isCEO || false, loggedInAt: new Date().toISOString()});
+        // Pokusit se synchronizovat na server (neblokuje)
+        apiPut('/users/' + localUser.id, { xp: localUser.xp || 0, bestScore: localUser.bestScore || 0, totalAnswered: localUser.totalAnswered || 0 });
+        return {success: true, message: 'Přihlášení proběhlo úspěšně! (offline režim)', isCEO: localUser.isCEO || false};
+    }
+    
     return {success: false, message: result.message || 'Nesprávný email nebo heslo.'};
 }
 
 async function handleRegister(name, email, password) {
+    // 1. Zkusit server
     const result = await apiPost('/register', { name, email, password });
     if (result.success) {
         const u = result.user;
@@ -376,7 +393,24 @@ async function handleRegister(name, email, password) {
         saveSession({userId: u.id, email: u.email, name: u.name, isCEO: false, loggedInAt: new Date().toISOString()});
         return {success: true, message: 'Registrace proběhla úspěšně!', isCEO: false};
     }
-    return {success: false, message: result.message || 'Registrace selhala.'};
+    
+    // 2. Pokud server neodpovídá, registrovat lokálně
+    const localUsers = getUsers();
+    const existing = localUsers.find(u => u.email === email);
+    if (existing) return {success: false, message: 'Účet s tímto emailem již existuje.'};
+    
+    const id = 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const newUser = {
+        id, email, password, name, isCEO: false,
+        xp: 0, bestScore: 0, achievements: [], streak: 0, bestStreak: 0, totalAnswered: 0, avatar: '',
+        registeredAt: new Date().toISOString()
+    };
+    localUsers.push(newUser);
+    saveUsers(localUsers);
+    saveSession({userId: id, email, name, isCEO: false, loggedInAt: new Date().toISOString()});
+    // Pokusit se synchronizovat na server (neblokuje)
+    apiPost('/register', { name, email, password });
+    return {success: true, message: 'Registrace proběhla úspěšně! (offline režim)', isCEO: false};
 }
 
 function updateCurrentUser(upd) {
