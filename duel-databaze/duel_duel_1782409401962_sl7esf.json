@@ -1,0 +1,126 @@
+{
+  "id": "duel_1782409401962_sl7esf",
+  "challengerId": "id_1782397177175_r26ys4fah",
+  "challengerName": "ccc",
+  "challengedId": "ceo_001",
+  "challengedName": "scale.exe",
+  "questionCount": 5,
+  "questions": [
+    {
+      "question_id": "21100025",
+      "question_text": "Řidič vozidla z výhledu hodlá pokračovat v jízdě po hlavní pozemní komunikaci. Přitom:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/211104.jpg",
+      "options": [
+        "musí dát znamení o změně směru jízdy vpravo",
+        "nemusí dát znamení o změně směru jízdy",
+        "musí dát znamení o změně směru jízdy vlevo"
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06050339",
+      "question_text": "Řidič nesmí zastavit a stát:",
+      "question_media": "",
+      "options": [
+        "V připojovacím nebo odbočovacím pruhu.",
+        "V připojovacím pruhu, nejméně 50 m před místem připojení k průběžnému pruhu.",
+        "Jen v odbočovacím pruhu."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060464",
+      "question_text": "Je velmi horký den. Co můžete jako řidič motocyklu očekávat na silnici?",
+      "question_media": "",
+      "options": [
+        "Rozměklý povrch vozovky a v důsledku toho ztížené ovládání vozidla.",
+        "Snížení přilnavosti pneumatik k vozovce vzhledem k jejich vyššímu zahřívání.",
+        "Zvýšený pohyb zvěře v lesních úsecích."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "23030023",
+      "question_text": "Řidič nákladního automobilu z výhledu s nejvyšší povolenou hmotností 3 300 kg s přípojným vozidlem s nejvyšší povolenou hmotností 2 000 kg:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/230323.jpg",
+      "options": [
+        "Nesmí vjet do takto označeného úseku. Součet nejvyšších povolených hmotností vozidel soupravy je vyšší než nejvyšší povolená hmotnost vyznačená na dopravní značce.",
+        "Smí do takto označeného úseku vjet, zákaz se vztahuje pouze na „velká“ nákladní vozidla.",
+        "Smí do takto označeného úseku vjet, ani jedno z vozidel soupravy nepřesahuje povolenou hmotnost."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060361",
+      "question_text": "Řidič jízdní soupravy, jejíž celková délka přesahuje 7 m, nesmí předjíždět jiné vozidlo:",
+      "question_media": "",
+      "options": [
+        "Nejede-li jím řízené vozidlo rychlostí alespoň 50 km/h.",
+        "Pokud k jeho předjetí nemá dostatečnou rychlost, takže by omezil v jízdě ostatní vozidla svou výrazně nižší rychlostí jízdy.",
+        "Pokud je výrazně snížena viditelnost."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    }
+  ],
+  "status": "accepted",
+  "startTime": 1782409403665,
+  "challengerAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 2,
+      "timeSpent": 4.436
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 5.252
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 1,
+      "timeSpent": 1.362
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 0,
+      "timeSpent": 4.071
+    },
+    {
+      "questionIndex": 4,
+      "selectedIndex": 1,
+      "timeSpent": 45.99
+    }
+  ],
+  "challengedAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 1.84
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 1,
+      "timeSpent": 5.067
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 0,
+      "timeSpent": 5.484
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 0,
+      "timeSpent": 6.231
+    },
+    {
+      "questionIndex": 4,
+      "selectedIndex": 1,
+      "timeSpent": 38.016
+    }
+  ]
+}

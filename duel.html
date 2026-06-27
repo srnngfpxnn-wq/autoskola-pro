@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duel - Autoškola Pro</title>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="animated-bg"></div>
+    <div id="navbar-placeholder"></div>
+
+    <div class="duel-wrapper" style="padding-top:5rem;min-height:100vh;">
+        <!-- Stavová obrazovka: čekání na začátek duelu -->
+        <div id="duel-lobby" class="duel-lobby">
+            <div class="container">
+                <div style="text-align:center;max-width:600px;margin:2rem auto;">
+                    <div style="font-size:3rem;margin-bottom:1rem;">⚔️</div>
+                    <h2 style="font-weight:800;margin-bottom:0.5rem;background:linear-gradient(135deg,var(--text-primary),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Připojování k duelu...</h2>
+                    <div class="duel-loading-spinner" style="margin:1.5rem auto;"></div>
+                    <div id="duel-lobby-info" style="color:var(--text-muted);font-size:0.9rem;">
+                        Probíhá připojování k hernímu serveru...
+                    </div>
+                    <button id="duel-lobby-back" class="btn-autoskola btn-autoskola-sm btn-autoskola-outline" style="margin-top:1.5rem;display:none;" onclick="window.location.href='app.html'">
+                        <i class="fas fa-arrow-left me-2"></i>Zpět do aplikace
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Herní obrazovka -->
+        <div id="duel-game" class="duel-game d-none">
+            <div class="container">
+                <!-- Hlavička duelu -->
+                <div class="duel-header">
+                    <div class="duel-player-info" id="duel-player-self">
+                        <div class="duel-player-avatar" id="duel-self-avatar">?</div>
+                        <div class="duel-player-name" id="duel-self-name">Já</div>
+                        <div class="duel-player-score" id="duel-self-score">0</div>
+                    </div>
+                    <div class="duel-vs">
+                        <span class="duel-vs-text">VS</span>
+                        <div class="duel-timer" id="duel-timer">60:00</div>
+                        <div class="duel-progress-text" id="duel-progress-text">Otázka 1/25</div>
+                    </div>
+                    <div class="duel-player-info" id="duel-player-opponent">
+                        <div class="duel-player-avatar" id="duel-opponent-avatar">?</div>
+                        <div class="duel-player-name" id="duel-opponent-name">Soupeř</div>
+                        <div class="duel-player-score" id="duel-opponent-score">0</div>
+                    </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="duel-progress-bar">
+                    <div class="duel-progress-fill" id="duel-progress-fill" style="width:0%;"></div>
+                </div>
+
+                <!-- Otázka -->
+                <div class="duel-question-area" id="duel-question-area">
+                    <div class="duel-question-text" id="duel-question-text">Načítání otázky...</div>
+                    <div id="duel-question-media" style="text-align:center;margin-bottom:1rem;"></div>
+                    <div class="duel-options" id="duel-options"></div>
+                    <!-- Emote bar -->
+                    <div class="duel-emote-bar" style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.08);">
+                        <button class="duel-emote-btn" data-emote="😂" title="Smích" style="font-size:1.5rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.3rem 0.5rem;cursor:pointer;transition:all 0.2s;">😂</button>
+                        <button class="duel-emote-btn" data-emote="😜" title="Výsměch" style="font-size:1.5rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.3rem 0.5rem;cursor:pointer;transition:all 0.2s;">😜</button>
+                        <button class="duel-emote-btn" data-emote="🤯" title="Nestíhám" style="font-size:1.5rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.3rem 0.5rem;cursor:pointer;transition:all 0.2s;">🤯</button>
+                        <button class="duel-emote-btn" data-emote="💩" title="Těžká otázka" style="font-size:1.5rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.3rem 0.5rem;cursor:pointer;transition:all 0.2s;">💩</button>
+                        <button class="duel-emote-btn" data-emote="🔥" title="Pálí to!" style="font-size:1.5rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.3rem 0.5rem;cursor:pointer;transition:all 0.2s;">🔥</button>
+                    </div>
+                </div>
+
+                <!-- Emote overlay -->
+                <div id="duel-emote-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;pointer-events:none;align-items:center;justify-content:center;">
+                    <div id="duel-emote-display" style="font-size:8rem;text-shadow:0 0 40px rgba(0,0,0,0.5);"></div>
+                </div>
+
+                <!-- Výsledky -->
+                <div id="duel-result" class="d-none" style="text-align:center;max-width:600px;margin:2rem auto;">
+                    <div id="duel-result-icon" style="font-size:4rem;margin-bottom:1rem;"></div>
+                    <h2 id="duel-result-title" style="font-weight:800;margin-bottom:0.5rem;">Výsledek duelu</h2>
+                    <div class="duel-result-players">
+                        <div class="duel-result-player">
+                            <div class="duel-result-name" id="duel-result-self-name">Já</div>
+                            <div class="duel-result-score" id="duel-result-self-score">0/0</div>
+                            <div class="duel-result-time" id="duel-result-self-time">0s</div>
+                            <div class="duel-result-badge" id="duel-result-self-badge"></div>
+                        </div>
+                        <div class="duel-result-vs">VS</div>
+                        <div class="duel-result-player">
+                            <div class="duel-result-name" id="duel-result-opponent-name">Soupeř</div>
+                            <div class="duel-result-score" id="duel-result-opponent-score">0/0</div>
+                            <div class="duel-result-time" id="duel-result-opponent-time">0s</div>
+                            <div class="duel-result-badge" id="duel-result-opponent-badge"></div>
+                        </div>
+                    </div>
+                    <button class="btn-autoskola" id="duel-return-btn" style="margin-top:1.5rem;" onclick="window.location.href='app.html'">
+                        <i class="fas fa-arrow-left me-2"></i>Zpět do aplikace
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Oznámení o duelu (pro vyzvaného hráče) -->
+        <div id="duel-notification-container" style="position:fixed;top:5rem;left:50%;transform:translateX(-50%);z-index:10000;display:none;max-width:500px;width:90%;"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    /* ========================================
+       DUEL - Multiplayer Game Client
+       ======================================== */
+    const API_URL = window.location.origin + '/api';
+    const APP_SESSION_KEY = 'autoskolaProSession';
+    const APP_USERS_KEY = 'autoskolaProUsers';
+
+    function getCurrentSession() { try { return JSON.parse(localStorage.getItem(APP_SESSION_KEY)) || null; } catch { return null; } }
+    function getCurrentUser() {
+        const s = getCurrentSession(); if (!s) return null;
+        try { return JSON.parse(localStorage.getItem(APP_USERS_KEY)).find(u => u.id === s.userId) || null; } catch { return null; }
+    }
+
+    let socket = null;
+    let duelState = {
+        duelId: null,
+        questions: [],
+        currentIndex: 0,
+        score: 0,
+        totalAnswered: 0,
+        startTime: null,
+        timerInterval: null,
+        timeLimit: 60 * 60 * 1000,
+        opponentName: '',
+        answers: [],
+        finished: false,
+        rejoinAttempts: 0
+    };
+
+    let rejoinTimeout = null;
+    let lobbyBackBtn = document.getElementById('duel-lobby-back');
+
+    function connectSocket() {
+        const session = getCurrentSession();
+        const user = getCurrentUser();
+        if (!session || !user) {
+            window.location.href = 'app.html';
+            return;
+        }
+
+        const storedDuelId = localStorage.getItem('currentDuelId');
+        if (storedDuelId) {
+            document.getElementById('duel-lobby-info').textContent = 'Připojuji se k duelu...';
+        }
+
+        socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+
+        socket.on('connect', () => {
+            console.log('[Duel] Připojen k serveru');
+            document.getElementById('duel-lobby-info').textContent = 'Připojen k serveru.';
+
+            socket.emit('user_online', {
+                userId: session.userId,
+                userName: session.name || 'Neznámý',
+                userEmail: session.email
+            });
+
+            if (storedDuelId) {
+                console.log('[Duel] Znovupřipojuji k duelu:', storedDuelId);
+                socket.emit('duel_rejoin', {
+                    duelId: storedDuelId,
+                    userId: session.userId
+                });
+                // Neodstraňujeme hned, abychom mohli zkusit znovu
+                setTimeout(() => {
+                    if (!duelState.duelId && !duelState.finished) {
+                        // Zkusíme to znovu po 2 sekundách
+                        socket.emit('duel_rejoin', {
+                            duelId: storedDuelId,
+                            userId: session.userId
+                        });
+                    }
+                }, 2000);
+            }
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('[Duel] Chyba připojení:', err);
+            document.getElementById('duel-lobby-info').textContent = 'Chyba připojení k serveru. Zkuste obnovit stránku.';
+            if (lobbyBackBtn) lobbyBackBtn.style.display = 'inline-flex';
+        });
+
+        socket.on('disconnect', () => {
+            console.log('[Duel] Odpojen od serveru');
+            document.getElementById('duel-lobby-info').textContent = 'Odpojen od serveru. Obnovuji připojení...';
+        });
+
+        // Přijetí duelu (start)
+        socket.on('duel_start', (data) => {
+            console.log('[Duel] Duel začíná!', data);
+            if (!data.questions || data.questions.length === 0) {
+                console.error('[Duel] Žádné otázky!');
+                document.getElementById('duel-lobby-info').textContent = 'Chyba: nepodařilo se načíst otázky.';
+                if (lobbyBackBtn) lobbyBackBtn.style.display = 'inline-flex';
+                return;
+            }
+            duelState.duelId = data.duelId;
+            duelState.questions = data.questions || [];
+            duelState.opponentName = data.opponentName || 'Soupeř';
+            duelState.startTime = data.startTime || Date.now();
+            duelState.timeLimit = data.timeLimit || 60 * 60 * 1000;
+            duelState.currentIndex = 0;
+            duelState.score = 0;
+            duelState.totalAnswered = 0;
+            duelState.answers = [];
+            duelState.finished = false;
+
+            // Odstraníme ID z localStorage, už ho nepotřebujeme
+            localStorage.removeItem('currentDuelId');
+
+            document.getElementById('duel-lobby').classList.add('d-none');
+            document.getElementById('duel-game').classList.remove('d-none');
+            document.getElementById('duel-result').classList.add('d-none');
+
+            const session = getCurrentSession();
+            document.getElementById('duel-self-name').textContent = session?.name || 'Já';
+            document.getElementById('duel-opponent-name').textContent = duelState.opponentName;
+
+            startDuelTimer();
+            showDuelQuestion();
+        });
+
+        socket.on('duel_state', (data) => {
+            console.log('[Duel] Stav duelu:', data);
+            if (data.status === 'finished' || data.status === 'accepted' && data.challengerAnswers + data.challengedAnswers >= data.questionCount) {
+                // Oba dokončili, ale možná ještě nemáme výsledek
+                if (!duelState.finished) {
+                    socket.emit('duel_get_result', { duelId: duelState.duelId || localStorage.getItem('currentDuelId') });
+                }
+            }
+        });
+
+        socket.on('duel_result', (data) => {
+            console.log('[Duel] Výsledek:', data);
+            duelState.finished = true;
+            stopDuelTimer();
+            showDuelResult(data);
+        });
+
+        socket.on('duel_error', (data) => {
+            console.error('[Duel] Chyba:', data.message);
+            document.getElementById('duel-lobby-info').textContent = '❌ ' + data.message;
+            if (lobbyBackBtn) lobbyBackBtn.style.display = 'inline-flex';
+            showDuelNotification(data.message || 'Nastala chyba', 'error');
+        });
+
+        // Real-time progress oponenta
+        socket.on('duel_progress', (data) => {
+            if (!duelState.duelId) return;
+            // Zjistíme, které skóre je naše a které soupeřovo podle aktuálního jména v duelState
+            const selfName = document.getElementById('duel-self-name').textContent;
+            const oppName = document.getElementById('duel-opponent-name').textContent;
+            
+            let myScore, oppScore;
+            if (data.challengerName === selfName) {
+                myScore = data.challengerScore;
+                oppScore = data.challengedScore;
+            } else {
+                myScore = data.challengedScore;
+                oppScore = data.challengerScore;
+            }
+            
+            // Aktualizujeme skóre v hlavičce (jen pokud se liší, aby nedošlo k přepisování)
+            const selfScoreEl = document.getElementById('duel-self-score');
+            const oppScoreEl = document.getElementById('duel-opponent-score');
+            if (selfScoreEl && parseInt(selfScoreEl.textContent) !== myScore) {
+                selfScoreEl.textContent = myScore;
+            }
+            if (oppScoreEl && parseInt(oppScoreEl.textContent) !== oppScore) {
+                oppScoreEl.textContent = oppScore;
+            }
+        });
+
+        socket.on('duel_opponent_disconnected', (data) => {
+            showDuelNotification(data.message || 'Protihráč se odpojil.', 'warning');
+            // Počkáme a pak ukážeme výsledek jako výhru
+            setTimeout(() => {
+                const session = getCurrentSession();
+                showDuelResult({
+                    isWinner: true,
+                    isDraw: false,
+                    challengerName: session?.name || 'Já',
+                    challengedName: duelState.opponentName || 'Soupeř',
+                    challengerResult: { correct: duelState.score, total: duelState.questions.length || 0, time: 0 },
+                    challengedResult: { correct: 0, total: duelState.questions.length || 0, time: 0 },
+                    winnerName: session?.name || 'Já',
+                    loserName: duelState.opponentName || 'Soupeř'
+                });
+            }, 1500);
+        });
+
+        // Přijatý emote od soupeře
+        socket.on('duel_emote_received', (data) => {
+            const overlay = document.getElementById('duel-emote-overlay');
+            const display = document.getElementById('duel-emote-display');
+            overlay.style.display = 'flex';
+            display.style.animation = 'none';
+            display.textContent = data.emote;
+            // Force reflow
+            void display.offsetWidth;
+            display.style.animation = 'emotePop 2s ease-out forwards';
+            
+            // Ukázat i jméno odesílatele
+            const nameTag = document.createElement('div');
+            nameTag.style.cssText = 'font-size:1.2rem;color:#fff;font-weight:600;text-shadow:0 0 20px rgba(0,0,0,0.8);position:fixed;top:50%;left:50%;transform:translate(-50%,80px);animation:emotePop 2s ease-out forwards;';
+            nameTag.textContent = data.fromName;
+            overlay.appendChild(nameTag);
+            
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                display.textContent = '';
+                if (nameTag.parentNode) nameTag.remove();
+            }, 2000);
+        });
+
+        // Zpracování nevyřízených výzev (z DB)
+        socket.on('duel_invitation', (data) => {
+            // Uložíme do localStorage pro případ, že stránka nebude aktivní
+            localStorage.setItem('pendingDuelInvitation', JSON.stringify(data));
+            showDuelInvitationBanner(data);
+        });
+    }
+
+    function showDuelQuestion() {
+        if (duelState.currentIndex >= duelState.questions.length) {
+            return;
+        }
+
+        const q = duelState.questions[duelState.currentIndex];
+        const total = duelState.questions.length;
+
+        // Update header
+        document.getElementById('duel-self-score').textContent = duelState.score;
+        document.getElementById('duel-progress-text').textContent = `Otázka ${duelState.currentIndex + 1}/${total}`;
+        document.getElementById('duel-progress-fill').style.width = ((duelState.currentIndex / total) * 100) + '%';
+
+        // Question text
+        document.getElementById('duel-question-text').textContent = q.question_text || 'Otázka není k dispozici.';
+
+        // Media
+        const mediaContainer = document.getElementById('duel-question-media');
+        if (q.question_media && q.question_media.trim()) {
+            mediaContainer.innerHTML = `<img src="${q.question_media}" alt="" class="img-fluid" style="max-height:160px;border-radius:0.75rem;border:1px solid rgba(255,107,0,0.15);">`;
+            mediaContainer.style.display = 'block';
+        } else {
+            mediaContainer.innerHTML = '';
+            mediaContainer.style.display = 'none';
+        }
+
+        // Options
+        const optionsContainer = document.getElementById('duel-options');
+        const letters = ['A', 'B', 'C'];
+        optionsContainer.innerHTML = (q.options || []).map((opt, idx) => `
+            <button class="duel-option-btn" data-index="${idx}" onclick="handleDuelAnswer(${idx})">
+                <span class="duel-option-letter">${letters[idx]}</span>
+                <span class="duel-option-text">${opt.replace(/^[A-C]:\s*/, '')}</span>
+            </button>
+        `).join('');
+    }
+
+    function handleDuelAnswer(selectedIndex) {
+        if (duelState.finished) return;
+
+        const q = duelState.questions[duelState.currentIndex];
+        const buttons = document.querySelectorAll('.duel-option-btn');
+        
+        buttons.forEach(btn => btn.disabled = true);
+
+        buttons.forEach((btn, idx) => {
+            if (idx === q.correctIndex) {
+                btn.classList.add('correct');
+            } else if (idx === selectedIndex && idx !== q.correctIndex) {
+                btn.classList.add('wrong');
+            }
+        });
+
+        const isCorrect = selectedIndex === q.correctIndex;
+        if (isCorrect) {
+            duelState.score++;
+        }
+        duelState.totalAnswered++;
+
+        const timeSpent = (Date.now() - (duelState.questionStartTime || Date.now())) / 1000;
+
+        if (socket && duelState.duelId) {
+            socket.emit('duel_answer', {
+                duelId: duelState.duelId,
+                questionIndex: duelState.currentIndex,
+                selectedIndex: selectedIndex,
+                timeSpent: timeSpent
+            });
+        }
+
+        document.getElementById('duel-self-score').textContent = duelState.score;
+
+        setTimeout(() => {
+            const isLastQuestion = duelState.currentIndex >= duelState.questions.length - 1;
+            
+            if (isLastQuestion) {
+                // Místo auto-advance zobrazíme tlačítko "Dokončit"
+                document.getElementById('duel-options').innerHTML = `
+                    <div style="text-align:center;padding:0.5rem;">
+                        <button class="btn-autoskola btn-autoskola-lg" id="duel-finish-btn" onclick="finishDuelGame()" style="width:100%;font-size:1.1rem;padding:1rem;">
+                            <i class="fas fa-flag-checkered me-2"></i>Dokončit
+                        </button>
+                    </div>`;
+            } else {
+                duelState.currentIndex++;
+                duelState.questionStartTime = Date.now();
+                showDuelQuestion();
+            }
+        }, 1000);
+    }
+
+    function finishDuelGame() {
+        // Odešleme serveru, že jsme dokončili
+        if (socket && duelState.duelId) {
+            socket.emit('duel_finish', { duelId: duelState.duelId });
+        }
+        // Zobrazíme "čekání na soupeře"
+        document.getElementById('duel-progress-text').textContent = 'Čekám na soupeře...';
+        document.getElementById('duel-question-area').innerHTML = `
+            <div style="text-align:center;padding:3rem;">
+                <div style="font-size:3rem;margin-bottom:1rem;">⏳</div>
+                <h4 style="font-weight:700;">Hotovo! 🎯</h4>
+                <p style="color:var(--text-muted);margin-top:0.5rem;">Dokončil jsi všechny otázky!</p>
+                <p style="color:var(--text-muted);font-size:0.85rem;">Čekám, až soupeř dokončí své otázky...</p>
+                <div class="duel-loading-spinner" style="margin:1.5rem auto;"></div>
+            </div>
+        `;
+    }
+
+    function startDuelTimer() {
+        const elapsed = Date.now() - duelState.startTime;
+        const remaining = Math.max(0, duelState.timeLimit - elapsed);
+        
+        if (duelState.timerInterval) clearInterval(duelState.timerInterval);
+        
+        duelState.questionStartTime = Date.now();
+        
+        duelState.timerInterval = setInterval(() => {
+            const elapsedNow = Date.now() - duelState.startTime;
+            const remainingNow = Math.max(0, duelState.timeLimit - elapsedNow);
+            const totalSecs = Math.ceil(remainingNow / 1000);
+            const mins = Math.floor(totalSecs / 60);
+            const secs = totalSecs % 60;
+            
+            const timerEl = document.getElementById('duel-timer');
+            timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            
+            if (totalSecs <= 60) {
+                timerEl.style.color = '#ef4444';
+                timerEl.style.animation = 'pulse 1s ease-in-out infinite';
+            }
+
+            if (totalSecs <= 0) {
+                clearInterval(duelState.timerInterval);
+                if (socket && duelState.duelId) {
+                    socket.emit('duel_timeout', { duelId: duelState.duelId });
+                }
+                duelState.finished = true;
+                document.getElementById('duel-question-area').innerHTML = `
+                    <div style="text-align:center;padding:3rem;">
+                        <div style="font-size:3rem;margin-bottom:1rem;">⏰</div>
+                        <h4 style="font-weight:700;">Čas vypršel!</h4>
+                        <p style="color:var(--text-muted);">Čekám na výsledky...</p>
+                    </div>
+                `;
+                if (socket && duelState.duelId) {
+                    socket.emit('duel_get_result', { duelId: duelState.duelId });
+                }
+            }
+        }, 1000);
+    }
+
+    function stopDuelTimer() {
+        if (duelState.timerInterval) {
+            clearInterval(duelState.timerInterval);
+            duelState.timerInterval = null;
+        }
+    }
+
+    function showDuelResult(data) {
+        const session = getCurrentSession();
+        const selfName = session?.name || 'Já';
+        const opponentName = data.opponentName || data.challengerName === selfName ? data.challengedName : data.challengerName || 'Soupeř';
+        
+        const selfResult = data.challengerName === selfName ? data.challengerResult : data.challengedResult;
+        const opponentResult = data.challengerName === selfName ? data.challengedResult : data.challengerResult;
+
+        stopDuelTimer();
+
+        document.getElementById('duel-game').classList.remove('d-none');
+        document.getElementById('duel-result').classList.remove('d-none');
+        document.getElementById('duel-question-area').classList.add('d-none');
+
+        if (data.isDraw) {
+            document.getElementById('duel-result-icon').innerHTML = '🤝';
+            document.getElementById('duel-result-title').textContent = 'Remíza!';
+            document.getElementById('duel-result-title').style.background = 'linear-gradient(135deg,#fbbf24,#f59e0b)';
+            document.getElementById('duel-result-title').style.webkitBackgroundClip = 'text';
+            document.getElementById('duel-result-title').style.backgroundClip = 'text';
+            document.getElementById('duel-result-title').style.webkitTextFillColor = 'transparent';
+        } else if (data.isWinner) {
+            document.getElementById('duel-result-icon').innerHTML = '🏆';
+            document.getElementById('duel-result-title').textContent = 'Vítězství! 🎉';
+            document.getElementById('duel-result-title').style.background = 'linear-gradient(135deg,#22c55e,#16a34a)';
+            document.getElementById('duel-result-title').style.webkitBackgroundClip = 'text';
+            document.getElementById('duel-result-title').style.backgroundClip = 'text';
+            document.getElementById('duel-result-title').style.webkitTextFillColor = 'transparent';
+        } else {
+            document.getElementById('duel-result-icon').innerHTML = '😢';
+            document.getElementById('duel-result-title').textContent = 'Prohra!';
+            document.getElementById('duel-result-title').style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+            document.getElementById('duel-result-title').style.webkitBackgroundClip = 'text';
+            document.getElementById('duel-result-title').style.backgroundClip = 'text';
+            document.getElementById('duel-result-title').style.webkitTextFillColor = 'transparent';
+        }
+
+        document.getElementById('duel-result-self-name').textContent = selfName;
+        document.getElementById('duel-result-self-score').textContent = `${selfResult?.correct || 0}/${selfResult?.total || 0}`;
+        document.getElementById('duel-result-self-time').textContent = `${selfResult?.time || 0}s`;
+        document.getElementById('duel-result-self-badge').innerHTML = data.isWinner ? '🏆 Vítěz' : '';
+
+        document.getElementById('duel-result-opponent-name').textContent = opponentName;
+        document.getElementById('duel-result-opponent-score').textContent = `${opponentResult?.correct || 0}/${opponentResult?.total || 0}`;
+        document.getElementById('duel-result-opponent-time').textContent = `${opponentResult?.time || 0}s`;
+        document.getElementById('duel-result-opponent-badge').innerHTML = !data.isWinner && !data.isDraw ? '🏆 Vítěz' : '';
+    }
+
+    function showDuelNotification(message, type = 'info') {
+        const container = document.getElementById('duel-notification-container');
+        if (!container) return;
+        container.style.display = 'block';
+        const colors = {
+            info: 'rgba(59,130,246,0.15)',
+            error: 'rgba(239,68,68,0.15)',
+            warning: 'rgba(245,158,11,0.15)',
+            success: 'rgba(34,197,94,0.15)'
+        };
+        const borderColors = {
+            info: 'rgba(59,130,246,0.3)',
+            error: 'rgba(239,68,68,0.3)',
+            warning: 'rgba(245,158,11,0.3)',
+            success: 'rgba(34,197,94,0.3)'
+        };
+        container.innerHTML = `
+            <div style="padding:1rem;border-radius:1rem;background:${colors[type] || colors.info};border:1px solid ${borderColors[type] || borderColors.info};backdrop-filter:blur(12px);text-align:center;font-weight:600;font-size:0.9rem;">
+                ${message}
+                <button onclick="this.parentElement.parentElement.style.display='none'" style="display:block;margin:0.5rem auto 0;background:none;border:1px solid rgba(255,255,255,0.2);color:var(--text-primary);padding:0.3rem 1rem;border-radius:0.5rem;cursor:pointer;font-size:0.8rem;">Zavřít</button>
+            </div>
+        `;
+        setTimeout(() => { container.style.display = 'none'; }, 8000);
+    }
+
+    function showDuelInvitationBanner(data) {
+        // Odstranit starý banner
+        const old = document.querySelector('.duel-invitation-banner');
+        if (old) old.remove();
+
+        const banner = document.createElement('div');
+        banner.className = 'duel-invitation-banner';
+        banner.style.cssText = `
+            position:fixed;top:5rem;left:50%;transform:translateX(-50%);z-index:10000;
+            max-width:500px;width:90%;padding:1rem;border-radius:1rem;
+            background:rgba(20,20,35,0.95);border:1px solid var(--accent);
+            backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,0.5);
+            animation:slideInDown 0.3s ease;
+        `;
+        
+        let acceptTimer = 10;
+        let timerInterval = null;
+
+        banner.innerHTML = `
+            <div style="text-align:center;margin-bottom:0.75rem;">
+                <div style="font-size:2.5rem;margin-bottom:0.25rem;">⚔️</div>
+                <div style="font-weight:700;font-size:0.95rem;">
+                    <span style="color:var(--accent);">${data.challengerName}</span> tě vyzval na duel!
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">
+                    O <strong>${data.questionCount}</strong> otázkách
+                </div>
+            </div>
+            <div style="display:flex;gap:0.75rem;justify-content:center;">
+                <button id="duel-accept-btn" style="flex:1;padding:0.6rem;border-radius:0.75rem;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;position:relative;overflow:hidden;">
+                    <span id="duel-accept-text">Přijmout (${acceptTimer})</span>
+                    <div id="duel-accept-timer-bar" style="position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,0.5);width:100%;transition:width 1s linear;"></div>
+                </button>
+                <button id="duel-decline-btn" style="flex:1;padding:0.6rem;border-radius:0.75rem;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;">
+                    Odmítnout
+                </button>
+            </div>
+            <button id="duel-banner-close" style="position:absolute;top:0.5rem;right:0.75rem;background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">&times;</button>
+        `;
+
+        document.body.appendChild(banner);
+
+        timerInterval = setInterval(() => {
+            acceptTimer--;
+            const acceptBtn = document.getElementById('duel-accept-btn');
+            const acceptText = document.getElementById('duel-accept-text');
+            const timerBar = document.getElementById('duel-accept-timer-bar');
+            
+            if (acceptText) acceptText.textContent = `Přijmout (${acceptTimer})`;
+            if (timerBar) timerBar.style.width = (acceptTimer / 10 * 100) + '%';
+            
+            if (acceptTimer <= 0) {
+                clearInterval(timerInterval);
+                banner.remove();
+                // Auto-decline přes API
+                if (data.duelId) {
+                    fetch('/api/duel/invitation/decline', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invitationId: data.duelId })
+                    }).catch(() => {});
+                }
+            }
+        }, 1000);
+
+        // Accept
+        document.getElementById('duel-accept-btn').addEventListener('click', function() {
+            clearInterval(timerInterval);
+            localStorage.setItem('currentDuelId', data.duelId);
+            banner.innerHTML = `
+                <div style="text-align:center;padding:1rem;">
+                    <div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+                    <div style="font-weight:600;">Přijímám duel...</div>
+                </div>`;
+            
+            // Přijmout přes API nebo socket
+            if (data.fromDB) {
+                fetch('/api/duel/invitation/accept', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invitationId: data.duelId })
+                }).then(res => res.json()).then(result => {
+                    if (result.success) {
+                        window.location.href = 'duel.html';
+                    } else {
+                        banner.innerHTML = `
+                            <div style="text-align:center;padding:1rem;color:#ef4444;">
+                                <div style="font-size:2rem;margin-bottom:0.5rem;">❌</div>
+                                <div>${result.message || 'Chyba při přijímání duelu.'}</div>
+                                <button onclick="this.parentElement.parentElement.remove()" style="margin-top:0.5rem;padding:0.3rem 1rem;border-radius:0.5rem;background:rgba(255,255,255,0.1);border:none;color:#fff;cursor:pointer;">Zavřít</button>
+                            </div>`;
+                    }
+                }).catch(() => {
+                    banner.innerHTML = `
+                        <div style="text-align:center;padding:1rem;color:#ef4444;">
+                            <div style="font-size:2rem;margin-bottom:0.5rem;">❌</div>
+                            <div>Chyba připojení, zkuste to znovu.</div>
+                            <button onclick="this.parentElement.parentElement.remove()" style="margin-top:0.5rem;padding:0.3rem 1rem;border-radius:0.5rem;background:rgba(255,255,255,0.1);border:none;color:#fff;cursor:pointer;">Zavřít</button>
+                        </div>`;
+                });
+            } else {
+                // Přes socket
+                if (socket && socket.connected) {
+                    socket.emit('duel_accept', { duelId: data.duelId });
+                    // Přesměrujeme se na duel.html (server pošle duel_start)
+                } else {
+                    // Fallback: přes API
+                    fetch('/api/duel/invitation/accept', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invitationId: data.duelId })
+                    }).then(res => res.json()).then(result => {
+                        if (result.success) {
+                            window.location.href = 'duel.html';
+                        } else {
+                            banner.innerHTML = `
+                                <div style="text-align:center;padding:1rem;color:#ef4444;">
+                                    <div style="font-size:2rem;margin-bottom:0.5rem;">❌</div>
+                                    <div>${result.message || 'Chyba při přijímání duelu.'}</div>
+                                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top:0.5rem;padding:0.3rem 1rem;border-radius:0.5rem;background:rgba(255,255,255,0.1);border:none;color:#fff;cursor:pointer;">Zavřít</button>
+                                </div>`;
+                        }
+                    });
+                }
+            }
+        });
+
+        // Decline
+        document.getElementById('duel-decline-btn').addEventListener('click', function() {
+            clearInterval(timerInterval);
+            banner.remove();
+            if (data.duelId) {
+                fetch('/api/duel/invitation/decline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invitationId: data.duelId })
+                }).catch(() => {});
+                if (socket && socket.connected) {
+                    socket.emit('duel_decline', { duelId: data.duelId });
+                }
+            }
+        });
+
+        document.getElementById('duel-banner-close').addEventListener('click', function() {
+            clearInterval(timerInterval);
+            banner.remove();
+        });
+    }
+
+    // Kontrola nevyřízených výzev při načtení
+    async function checkPendingInvitations() {
+        const session = getCurrentSession();
+        if (!session) return;
+        try {
+            const resp = await fetch(`/api/duel/invitations/${session.userId}`);
+            const data = await resp.json();
+            if (data.success && data.invitations && data.invitations.length > 0) {
+                for (const inv of data.invitations) {
+                    showDuelInvitationBanner({
+                        duelId: inv.id,
+                        challengerName: inv.challengerName,
+                        questionCount: inv.questionCount,
+                        fromDB: true
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Chyba při kontrole výzev:', e);
+        }
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', function() {
+        const session = getCurrentSession();
+        if (!session) {
+            window.location.href = 'login.html';
+            return;
+        }
+        connectSocket();
+        checkPendingInvitations();
+
+        // Emote click handlers
+        document.querySelectorAll('.duel-emote-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const emote = this.dataset.emote;
+                if (socket && socket.connected && duelState.duelId) {
+                    socket.emit('duel_emote', {
+                        duelId: duelState.duelId,
+                        emote: emote
+                    });
+                    // Zvýrazníme tlačítko
+                    this.style.transform = 'scale(1.4)';
+                    this.style.borderColor = 'var(--accent)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                        this.style.borderColor = '';
+                    }, 300);
+                }
+            });
+        });
+
+        // Pokud se duel nepodaří spustit do 15 sekund, zobrazíme tlačítko zpět
+        setTimeout(() => {
+            if (!duelState.duelId && !duelState.finished) {
+                document.getElementById('duel-lobby-info').textContent = '❌ Nepodařilo se připojit k duelu. Zkuste to znovu.';
+                if (lobbyBackBtn) lobbyBackBtn.style.display = 'inline-flex';
+            }
+        }, 15000);
+    });
+    </script>
+</body>
+</html>

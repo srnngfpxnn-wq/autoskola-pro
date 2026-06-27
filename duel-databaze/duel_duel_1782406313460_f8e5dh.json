@@ -1,0 +1,121 @@
+{
+  "id": "duel_1782406313460_f8e5dh",
+  "challengerId": "ceo_001",
+  "challengerName": "scale.exe",
+  "challengedId": "id_1782397177175_r26ys4fah",
+  "challengedName": "ccc",
+  "questionCount": 5,
+  "questions": [
+    {
+      "question_id": "10040030",
+      "question_text": "Za kombinovanou dopravu se považuje systém přepravy při kterém:",
+      "question_media": "",
+      "options": [
+        "je zboží přepravováno v jedné a téže přepravní jednotce, využije se též železniční a vodní doprava.",
+        "osoby využívají různých druhů dopravních prostředků, např. autobusu nebo vlaku.",
+        "se jedná o dopravní obslužnost území ve vnitrostátní silniční dopravě."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060160",
+      "question_text": "Tato dopravní značka upozorňuje účastníky provozu na pozemních komunikacích:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/a18.jpg",
+      "options": [
+        "Na místo nebo úsek pozemní komunikace, kde se může vlivem sesuvů nebo padání kamenů na pozemní komunikaci vyskytovat kamení nebo zemina.",
+        "Místo nebo úsek, v jehož blízkosti se nachází kamenolom.",
+        "Na místo nebo úsek pozemní komunikace, kde se na vozovce vyskytuje volný štěrk,"
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060322",
+      "question_text": "Světelný signál se současně svítícím červeným a žlutým světlem „Pozor“, znamená pro řidiče povinnost:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0391.jpg",
+      "options": [
+        "Zastavit vozidlo.",
+        "Připravit se k jízdě.",
+        "Pokračovat v jízdě."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06060258",
+      "question_text": "Tato dopravní značka:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0262.jpg",
+      "options": [
+        "Platí pro všechny křižovatky na území obce, které je označeno příslušnou dopravní značkou.",
+        "Platí jen pro nejbližší křižovatku.",
+        "Platí pro všechny následující křižovatky v přímém směru, pokud její platnost není ukončena dopravní značkou \"Hlavní pozemní komunikace\"."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06060182",
+      "question_text": "Vozidlům s právem přednostní jízdy a vozidlům jimi doprovázeným musí řidiči ostatních vozidel:",
+      "question_media": "",
+      "options": [
+        "Umožnit bezpečný a plynulý průjezd okamžitým zastavením vozidla.",
+        "Umožnit bezpečný a plynulý průjezd, a jestliže je to nutné i zastavit vozidlo na takovém místě, aby jim nepřekážela.",
+        "Umožnit bezpečné předjetí, nejsou však povinni jim umožnit bezpečný a plynulý průjezd."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    }
+  ],
+  "status": "accepted",
+  "startTime": 1782406314721,
+  "challengerAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 2.262
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 5.681
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 1,
+      "timeSpent": 10.23
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 1,
+      "timeSpent": 20.732
+    },
+    {
+      "questionIndex": 4,
+      "selectedIndex": 0,
+      "timeSpent": 7.898
+    }
+  ],
+  "challengedAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 4.571
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 4.453
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 1,
+      "timeSpent": 4.711
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 1,
+      "timeSpent": 14.672
+    }
+  ]
+}

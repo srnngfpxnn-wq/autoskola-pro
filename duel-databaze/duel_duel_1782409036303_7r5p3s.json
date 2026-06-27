@@ -1,0 +1,346 @@
+{
+  "id": "duel_1782409036303_7r5p3s",
+  "challengerId": "id_1782397177175_r26ys4fah",
+  "challengerName": "ccc",
+  "challengedId": "ceo_001",
+  "challengedName": "scale.exe",
+  "questionCount": 25,
+  "questions": [
+    {
+      "question_id": "06060305",
+      "question_text": "Za touto dopravní značkou smíte jet rychlostí:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0117.jpg",
+      "options": [
+        "Nejvýše 50 km/h.",
+        "Nejvýše 20 km/h.",
+        "Nejvýše 60 km/h."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "22100027",
+      "question_text": "Nedodržení bezpečné vzdálenosti za vpředu jedoucím vozidlem je v ČR:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/2209116.jpg",
+      "options": [
+        "jednou z nejméně častých příčin vzniku dopravních nehod.",
+        "jednou z nejčastějších příčin vzniku dopravních nehod.",
+        "jedním z faktorů, který nemá na bezpečnost silničního provozu významný vliv."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06060075",
+      "question_text": "Během jízdy může kouřit:",
+      "question_media": "",
+      "options": [
+        "Řidič motocyklu a mopedu.",
+        "Řidič vozidla hromadné dopravy osob.",
+        "Řidič osobního motorového vozidla."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060369",
+      "question_text": "Dojde-li při jízdě vozidla v tunelu k poruše vozidla, pro kterou se toto vozidlo stalo nepojízdným, nebo dojde-li k dopravní nehodě, je řidič povinen neprodleně:",
+      "question_media": "",
+      "options": [
+        "Vypnout motor, a je-li k vytápění vozidla použito nezávislého topení, vypnout i toto topení.",
+        "Vypnout osvětlení vozidla.",
+        "Opustit tunel."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "23030008",
+      "question_text": "Řidič autobusu za jízdy:",
+      "question_media": "",
+      "options": [
+        "Nesmí držet v ruce nebo jiným způsobem mikrofon.",
+        "Smí držet v ruce nebo jiným způsobem mikrofon a informovat cestující, pokud se jedná o zájezd a nejedná se o osádku dvou řidičů.",
+        "Smí držet v ruce nebo jiným způsobem mikrofon a informovat cestující, pokud se jedná o nepravidelnou přepravu osob - zájezd."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "24030030",
+      "question_text": "Jaké podmínky musí splňovat mentor sedmnáctiletého řidiče (L17)?",
+      "question_media": "https://www.autoskola-testy.cz/img/single/2403030.png",
+      "options": [
+        "Musí být držitelem řidičského oprávnění minimálně 5 let, může mít v bodovém hodnocení řidiče zaznamenány maximálně 2 body.",
+        "Nemusí splňovat žádné zvláštní podmínky, pouze musí souhlasit se zápisem sebe, jako mentora, do evidenční karty sedmnáctiletého řidiče (L17).",
+        "Musí být držitelem řidičského oprávnění skupiny B minimálně 10 let, posledních 5 let toto oprávnění nepozbyl (neměl zákaz řízení), nemá zadržený řidičský průkaz, nemá v bodovém hodnocení řidiče zaznamenán žádný bod, souhlasí se zápisem jako mentor do evidenční karty sedmnáctiletého řidiče (L17)."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060127",
+      "question_text": "Dojde-li při jízdě vozidla v tunelu k poruše vozidla, pro kterou se toto vozidlo stalo nepojízdným:",
+      "question_media": "",
+      "options": [
+        "Řidič ani přepravovaná osoba nesmí kouřit ani zacházet s otevřeným ohněm. Nezávislé topení nepojízdného vozidla může v tunelu zůstat zapnuto.",
+        "Řidič ani přepravovaná osoba nesmí kouřit ani zacházet s otevřeným ohněm. Nezávislé topení nepojízdného vozidla musí v tunelu být vypnuto.",
+        "Řidič ani přepravovaná osoba nesmí zacházet s otevřeným ohněm, kouřit mohou pouze na místech k tomu určených. Nezávislé topení nepojízdného vozidla může v tunelu zůstat zapnuto."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06050409",
+      "question_text": "Stát znamená:",
+      "question_media": "",
+      "options": [
+        "Uvést vozidlo do klidu na dobu nezbytně nutnou k neprodlenému nastoupení nebo vystoupení přepravovaných osob anebo k neprodlenému naložení nebo složení nákladu.",
+        "Přerušit jízdu z důvodu nezávislého na vůli řidiče, například při závadě na vozidle.",
+        "Uvést vozidlo do klidu nad dobu dovolenou pro zastavení."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060197",
+      "question_text": "Při zařazování z připojovacího pruhu do průběžného pruhu:",
+      "question_media": "",
+      "options": [
+        "Musí řidič jedoucí v připojovacím pruhu dosáhnout stejné rychlosti jako ostatní řidiči.",
+        "Řidič nesmí omezit řidiče vozidla jedoucího v průběžném pruhu.",
+        "Řidič nesmí ohrozit řidiče jedoucí v průběžném pruhu."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "10060029",
+      "question_text": "\"Nemotorové vozidlo\" je:",
+      "question_media": "",
+      "options": [
+        "Pouze přípojné a potahové vozidlo.",
+        "Pouze ruční vozík nebo jízdní kolo.",
+        "Přípojné vozidlo a vozidlo pohybující se pomocí lidské nebo zvířecí síly, například jízdní kolo, ruční vozík nebo potahové vozidlo."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060134",
+      "question_text": "Při vlečení motorového vozidla se smí jet rychlostí:",
+      "question_media": "",
+      "options": [
+        "Nejvýše 60 km/h.",
+        "Nejvýše 90 km/h.",
+        "Nejvýše 70 km/h."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06050334",
+      "question_text": "Přečnívá-li za nesnížené viditelnosti náklad vozidlo vpředu nebo vzadu o více než 1 metr, musí být přečnívající konec nákladu:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0458.jpg",
+      "options": [
+        "Označen vzadu červenou a vpředu bílou odrazkou trojúhelníkového tvaru.",
+        "Označen vzadu červenou a vpředu bílou odrazkou jiného než trojúhelníkového tvaru.",
+        "Označen červeným praporkem o rozměrech nejméně 30 x 30 cm."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060162",
+      "question_text": "Tato značka:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/b23b.jpg",
+      "options": [
+        "Zakazuje užívání výstražných zvukových znamení.",
+        "Ukončuje platnost značky „Zákaz výstražných zvukových znamení“.",
+        "Ukončuje zákaz užívání výstražných znamení."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06060465",
+      "question_text": "Na signál se zeleným plným kruhovým světlem „Volno“:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0297.jpg",
+      "options": [
+        "Smíte odbočit vpravo, přičemž musíte dát přednost chodcům přecházejícím ve volném směru po přechodu pro chodce.",
+        "Smíte odbočit vpravo, přičemž chodci přecházející ve volném směru po přechodu pro chodce Vám musí dát přednost.",
+        "Nesmíte odbočit vpravo, neboť uvedený signál platí pouze pro jízdu v přímém směru a odbočení neumožňuje."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060258",
+      "question_text": "Tato dopravní značka:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0262.jpg",
+      "options": [
+        "Platí pro všechny následující křižovatky v přímém směru, pokud její platnost není ukončena dopravní značkou \"Hlavní pozemní komunikace\".",
+        "Platí pro všechny křižovatky na území obce, které je označeno příslušnou dopravní značkou.",
+        "Platí jen pro nejbližší křižovatku."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "10060001",
+      "question_text": "\"Řidič\" je:",
+      "question_media": "",
+      "options": [
+        "ten, kdo řídí motorové nebo nemotorové vozidlo anebo tramvaj.",
+        "pouze ten, kdo řídí motorové vozidlo.",
+        "ten, kdo řídí motorové nebo nemotorové vozidlo, ne však tramvaj."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06050401",
+      "question_text": "Provozovatel vozidla je:",
+      "question_media": "",
+      "options": [
+        "Každá fyzická osoba, která je držitelem řidičského oprávnění, ale není vlastníkem vozidla.",
+        "Každá fyzická osoba, která je držitelem řidičského oprávnění.",
+        "Osoba, která je v registru silničních vozidel zapsána jako vlastník vozidla, není-li jako jeho provozovatel v registru silničních vozidel zapsána jiná osoba."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060356",
+      "question_text": "Pokud hustota provozu na silnici pro motorová vozidla o dvou jízdních pruzích v jednom směru jízdy vyvolá vznik kolony stojících vozidel, jsou řidiči souběžně jedoucích vozidel povinni:",
+      "question_media": "",
+      "options": [
+        "Řadit se průběžně do levého jízdního pruhu.",
+        "Řadit se průběžně do pravého jízdního pruhu.",
+        "vytvořit mezi jízdními pruhy prostor pro průjezd vozidel s právem přednostní jízdy"
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060226",
+      "question_text": "Na pozemní komunikaci se jezdí:",
+      "question_media": "",
+      "options": [
+        "Vpravo ve vzdálenosti nejméně 1 m od okraje vozovky.",
+        "Vpravo, a pokud tomu nebrání zvláštní okolnosti, při pravém okraji vozovky, pokud není stanoveno jinak.",
+        "Výlučně při pravém okraji vozovky, a to za všech okolností."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06060302",
+      "question_text": "Pokud jako řidič vidíte na vozovce tento symbol, musíte:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0076.jpg",
+      "options": [
+        "Zastavit vozidlo, protože za ním začíná stezka pro chodce, na kterou nesmíte vjíždět.",
+        "Přizpůsobit jízdu tomu, že se blížíte k přechodu pro chodce.",
+        "Snížit rychlost jízdy na 20 km/h, protože vjíždíte do pěší zóny."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06060217",
+      "question_text": "O odstranění vozidla, které neoprávněně stojí na vyhrazeném parkovišti:",
+      "question_media": "",
+      "options": [
+        "Může rozhodnout jen policista.",
+        "Může rozhodnout jen strážník obecní policie.",
+        "Rozhodne policista nebo strážník obecní policie; vozidlo se odstraní na náklad jeho provozovatele."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060137",
+      "question_text": "Při zastavení vozidla před železničním přejezdem:",
+      "question_media": "",
+      "options": [
+        "Musí řidič motorového vozidla zařadit rychlostní stupeň nebo použít parkovací brzdu.",
+        "Musí řidič motorového vozidla okamžitě vypnout motor.",
+        "Nesmí řidič užít ani potkávací světla, pokud by jimi mohl oslnit řidiče v protisměru."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06040268",
+      "question_text": "Řidič nesmí překročit:",
+      "question_media": "",
+      "options": [
+        "Nejvyšší povolenou rychlost vozidla, a jde-li o jízdní soupravu, nejvyšší povolenou rychlost žádného z vozidel soupravy.",
+        "Nejvyšší povolenou rychlost vozidla, a jde-li o jízdní soupravu, nemusí brát zřetel na nejvyšší povolenou rychlost přípojného vozidla.",
+        "Nejvyšší povolenou rychlost vozidla, a jde-li o jízdní soupravu, musí brát zřetel jen na nejvyšší povolenou rychlost přípojného vozidla."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060218",
+      "question_text": "Řidič motorového vozidla je povinen na výzvu policisty:",
+      "question_media": "",
+      "options": [
+        "Doplnit nádrž vozidla pohonnými látkami.",
+        "Podrobit vozidlo kontrole hmotnosti vozidla nebo jízdní soupravy.",
+        "Přibrat jako spolujezdce osobu, které ujelo vozidlo hromadné dopravy osob."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06050316",
+      "question_text": "K měření rychlosti vozidel je oprávněna:",
+      "question_media": "",
+      "options": [
+        "Policie České republiky, obecní policie a celní správa.",
+        "Policie České republiky a obecní policie.",
+        "Policie České republiky."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    }
+  ],
+  "status": "accepted",
+  "startTime": 1782409037718,
+  "challengerAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 4.45
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 1,
+      "timeSpent": 10.06
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 2,
+      "timeSpent": 29.564
+    }
+  ],
+  "challengedAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 5.331
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 1,
+      "timeSpent": 29.694
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 0,
+      "timeSpent": 5.899
+    }
+  ]
+}

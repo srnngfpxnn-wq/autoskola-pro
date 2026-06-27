@@ -1,0 +1,106 @@
+{
+  "id": "duel_1782407859263_1j5oq6",
+  "challengerId": "ceo_001",
+  "challengerName": "scale.exe",
+  "challengedId": "id_1782397177175_r26ys4fah",
+  "challengedName": "ccc",
+  "questionCount": 5,
+  "questions": [
+    {
+      "question_id": "06050594",
+      "question_text": "V pěší zóně:",
+      "question_media": "",
+      "options": [
+        "Smějí chodci užívat pozemní komunikaci v celé její šířce.",
+        "Mohou chodci užít k chůzi pouze chodníku, a kde chodník není, užijí levou krajnici či levý okraj vozovky.",
+        "Mohou chodci užít k chůzi pouze chodníku, a kde chodník není, mohou užít pozemní komunikaci v celé šířce."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060049",
+      "question_text": "Odbočují-li řidiči protijedoucích vozidel vlevo:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0188.jpg",
+      "options": [
+        "Vyhýbají se podle okolností a dostatku prostoru v křižovatce vpravo i vlevo.",
+        "Vyhýbají se vpravo (jejich vozidla se míjejí levými boky).",
+        "Vyhýbají se vlevo (jejich vozidla se míjejí pravými boky)."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "23030025",
+      "question_text": "Řidič nákladního automobilu při běžném provozu (pokud tomu nebrání lékařským potvrzením doložené objektivní zdravotní důvody), musí být na sedadle vybaveném bezpečnostním pásem:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/230326.jpg",
+      "options": [
+        "Připoután vždy a bezpodmínečně.",
+        "Připoután, to neplatí při couvání vozidla.",
+        "Připoután jen při rychlosti vozidla nad 25 km/hod."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "06050315",
+      "question_text": "Zvláštním způsobem musí být označen náklad, který z boku u motorového vozidla nebo jízdní soupravy přečnívá:",
+      "question_media": "",
+      "options": [
+        "Vnější okraj obrysových světel o více než 20 cm.",
+        "Vnější obrys motorového vozidla nebo jízdní soupravy o více než 20 cm.",
+        "Vnější okraj obrysových světel o více než 40 cm."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "23030011",
+      "question_text": "Smí řidič při zastavení vozidla před železničním přejezdem za snížené viditelnosti užít potkávací světla?",
+      "question_media": "https://www.autoskola-testy.cz/img/single/230310.jpg",
+      "options": [
+        "Ne, je povinen vždy užít dálková světla.",
+        "Ano, za všech okolností.",
+        "Ne, pokud by jimi mohl oslnit řidiče v protisměru."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    }
+  ],
+  "status": "accepted",
+  "startTime": 1782407860362,
+  "challengerAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 2.113
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 3.979
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 1,
+      "timeSpent": 10.319
+    }
+  ],
+  "challengedAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 1,
+      "timeSpent": 4.701
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 1,
+      "timeSpent": 3.491
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 1,
+      "timeSpent": 3.439
+    }
+  ]
+}

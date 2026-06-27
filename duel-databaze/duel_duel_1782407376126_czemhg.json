@@ -1,0 +1,126 @@
+{
+  "id": "duel_1782407376126_czemhg",
+  "challengerId": "ceo_001",
+  "challengerName": "scale.exe",
+  "challengedId": "id_1782397177175_r26ys4fah",
+  "challengedName": "ccc",
+  "questionCount": 5,
+  "questions": [
+    {
+      "question_id": "21100003",
+      "question_text": "Které směrové sloupky označují úsek pozemní komunikace, kde hrozí zvýšené nebezpečí námrazy:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/211006.jpg",
+      "options": [
+        "<img src=\"/img/tripple/211006-2.jpg\">",
+        "<img src=\"/img/tripple/211006-1.jpg\">",
+        "<img src=\"/img/tripple/211006-3.jpg\">"
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "10060011",
+      "question_text": "\"Obec\":",
+      "question_media": "",
+      "options": [
+        "je zastavěné území, jehož začátek a konec je na pozemní komunikaci označen příslušnými dopravními značkami,které se vždy umísťují na účelových komunikacích.",
+        "je zastavěné území, jehož začátek a konec je na pozemní komunikaci označen příslušnými dopravními značkami; na účelových komunikacích se značky neosazují.",
+        "je území vyznačené v mapě, musí mít název a je označeno dopravní značkou \"Nejvyšší dovolená rychlost\"."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    },
+    {
+      "question_id": "23060017",
+      "question_text": "Pokud není motocykl vybaven směrovými světly, dává znamení o změně směru jízdy řidič:",
+      "question_media": "",
+      "options": [
+        "paží.",
+        "v takovém případě není povinen dávat znamení o změně směru jízdy.",
+        "nohou."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "10060017",
+      "question_text": "\"Silnice pro motorová vozidla\":",
+      "question_media": "",
+      "options": [
+        "je účelová pozemní komunikace určená pro rychlou jízdu motorových vozidel.",
+        "je místní pozemní komunikace označená dopravní značkou \"Dálnice\".",
+        "je pozemní komunikace označená dopravní značkou \"Silnice pro motorová vozidla\"."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06060320",
+      "question_text": "Pokud přijíždíte na tuto křižovatku, musíte dát přednost v jízdě všem vozidlům přijíždějícím:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/0434.jpg",
+      "options": [
+        "Zprava i zleva.",
+        "Jen zleva.",
+        "Jen zprava."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    }
+  ],
+  "status": "accepted",
+  "startTime": 1782407377225,
+  "challengerAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 1,
+      "timeSpent": 4.273
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 1,
+      "timeSpent": 1.483
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 1,
+      "timeSpent": 64.383
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 0,
+      "timeSpent": 0.53
+    },
+    {
+      "questionIndex": 4,
+      "selectedIndex": 0,
+      "timeSpent": 0.948
+    }
+  ],
+  "challengedAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 2.495
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 5.016
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 0,
+      "timeSpent": 2.704
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 1,
+      "timeSpent": 6.423
+    },
+    {
+      "questionIndex": 4,
+      "selectedIndex": 1,
+      "timeSpent": 0.98
+    }
+  ]
+}

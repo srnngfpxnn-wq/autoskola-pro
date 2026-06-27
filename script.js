@@ -1,5 +1,5 @@
 /* ========================================
-   AUTOSKOLA PRO - Final v6 (SQLite + Signs)
+   AUTOSKOLA PRO - Final v7 (API Signs + History)
    ======================================== */
 
 // ==========================================
@@ -9,7 +9,6 @@ const APP_DATA_KEY = 'autoskolaProData';
 const APP_USERS_KEY = 'autoskolaProUsers';
 const APP_SESSION_KEY = 'autoskolaProSession';
 const APP_THEME_KEY = 'autoskolaProTheme';
-const APP_SIGNS_KEY = 'autoskolaProSigns';
 const CEO_EMAIL = 'scale.czsklol@gmail.com';
 const CEO_PASSWORD = 'kokotko123';
 
@@ -27,8 +26,6 @@ const REMOTE_TOPICS = [
     { key: 'remote_6', icon: 'fa-file-alt', name: 'Předpisy o provozu', topic: 6 },
     { key: 'remote_7', icon: 'fa-heartbeat', name: 'Zdravotnická příprava', topic: 7 }
 ];
-
-const remoteTopicInfoCache = {};
 
 const LEVELS = [
     { level: 1, title: 'Chodec', xpNeeded: 0 },
@@ -63,7 +60,7 @@ const MOCK_LEADERBOARD = [
 ];
 
 // ==========================================
-// AUDIO (disabled - no sounds)
+// AUDIO (disabled)
 // ==========================================
 const AudioFX = {
     correct: null, wrong: null, fanfare: null, achievement: null,
@@ -113,16 +110,12 @@ function initAppData() {
         if (!online) {
             existingData.groups.push(defaultData.groups[0]);
         } else {
-            online.letter = 'B';
-            online.name = 'Skupina B';
+            online.letter = 'Testové otázky.';
+            online.name = 'Všechny otázky online';
             if (!online.categories) online.categories = {};
         }
         const mergedData = mergeDefaultAppData(existingData, defaultData);
         saveAppData(mergedData);
-    }
-    // Inicializovat značky
-    if (!localStorage.getItem(APP_SIGNS_KEY)) {
-        localStorage.setItem(APP_SIGNS_KEY, JSON.stringify({ categories: [], signs: [] }));
     }
 }
 
@@ -163,47 +156,67 @@ function getCurrentUser() {
 }
 
 // ==========================================
-// SIGNS DATA (Dopravní značky)
+// SIGNS - fetching from server API
 // ==========================================
-function getSignsData() {
-    try { return JSON.parse(localStorage.getItem(APP_SIGNS_KEY)) || { categories: [], signs: [] }; }
-    catch { return { categories: [], signs: [] }; }
-}
-function saveSignsData(d) { localStorage.setItem(APP_SIGNS_KEY, JSON.stringify(d)); }
-
-function addSignCategory(name, icon) {
-    const data = getSignsData();
-    if (data.categories.find(c => c.name === name)) return { success: false, message: 'Kategorie již existuje.' };
-    data.categories.push({ id: generateId(), name, icon: icon || 'fa-triangle-exclamation' });
-    saveSignsData(data);
-    return { success: true, message: `Kategorie "${name}" přidána.` };
-}
-
-function deleteSignCategory(catId) {
-    const data = getSignsData();
-    data.categories = data.categories.filter(c => c.id !== catId);
-    data.signs = data.signs.filter(s => s.categoryId !== catId);
-    saveSignsData(data);
+async function getSignsData() {
+    try {
+        const [catRes, signsRes] = await Promise.all([
+            fetch(API_URL + '/signs/categories'),
+            fetch(API_URL + '/signs')
+        ]);
+        const catData = await catRes.json();
+        const signsData = await signsRes.json();
+        if (catData.success && signsData.success) {
+            return { success: true, categories: catData.categories, signs: signsData.signs };
+        }
+        return { success: false, categories: [], signs: [] };
+    } catch {
+        return { success: false, categories: [], signs: [] };
+    }
 }
 
-function addSign(categoryId, name, imageUrl, description) {
-    const data = getSignsData();
-    if (!data.categories.find(c => c.id === categoryId)) return { success: false, message: 'Kategorie neexistuje.' };
-    data.signs.push({
-        id: generateId(),
-        categoryId,
-        name,
-        imageUrl: imageUrl || '',
-        description: description || ''
-    });
-    saveSignsData(data);
-    return { success: true, message: `Značka "${name}" přidána.` };
+async function addSignCategory(name, icon) {
+    try {
+        const res = await fetch(API_URL + '/signs/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, icon })
+        });
+        return await res.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
 }
 
-function deleteSign(signId) {
-    const data = getSignsData();
-    data.signs = data.signs.filter(s => s.id !== signId);
-    saveSignsData(data);
+async function deleteSignCategoryAPI(catId) {
+    try {
+        const res = await fetch(API_URL + '/signs/categories/' + catId, { method: 'DELETE' });
+        return await res.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
+}
+
+async function addSign(categoryId, name, imageUrl, description) {
+    try {
+        const res = await fetch(API_URL + '/signs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categoryId, name, imageUrl, description })
+        });
+        return await res.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
+}
+
+async function deleteSignAPI(signId) {
+    try {
+        const res = await fetch(API_URL + '/signs/' + signId, { method: 'DELETE' });
+        return await res.json();
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
 }
 
 // ==========================================
@@ -255,22 +268,24 @@ async function apiPut(url, data) {
     }
 }
 
-async function getRemoteTopicInfo(topicId) {
-    if (remoteTopicInfoCache[topicId]) return remoteTopicInfoCache[topicId];
-    let lastError = null;
-    for (let attempt = 1; attempt <= REMOTE_INFO_RETRY; attempt++) {
-        try {
-            const resp = await fetchWithTimeout(`${API_URL}/remote-group-info?topic=${topicId}`);
-            const data = await resp.json();
-            if (!data.success) throw new Error(data.message || 'Nepodařilo se načíst info tématu');
-            remoteTopicInfoCache[topicId] = data;
-            return data;
-        } catch (e) {
-            lastError = e;
-            if (attempt < REMOTE_INFO_RETRY) await new Promise(resolve => setTimeout(resolve, 500));
-        }
+async function apiDelete(url) {
+    try {
+        const resp = await fetch(API_URL + url, { method: 'DELETE' });
+        return await resp.json();
+    } catch(e) {
+        return { success: false, message: e.message };
     }
-    throw lastError || new Error('Nepodařilo se načíst info tématu');
+}
+
+async function getRemoteTopicInfo(topicId) {
+    try {
+        const resp = await fetchWithTimeout(`${API_URL}/remote-group-info?topic=${topicId}`);
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || 'Nepodařilo se načíst info tématu');
+        return data;
+    } catch (e) {
+        throw e;
+    }
 }
 
 // ==========================================
@@ -352,7 +367,6 @@ function getStreakDisplay() {
 // AUTH
 // ==========================================
 async function handleLogin(email, password) {
-    // 1. Zkusit server
     const result = await apiPost('/login', { email, password });
     if (result.success) {
         const u = result.user;
@@ -364,26 +378,10 @@ async function handleLogin(email, password) {
         saveSession({userId: u.id, email: u.email, name: u.name, isCEO: u.isCEO, loggedInAt: new Date().toISOString()});
         return {success: true, message: 'Přihlášení proběhlo úspěšně!', isCEO: u.isCEO};
     }
-    
-    // 2. Pokud server neodpovídá (např. Render.com restart), zkusit lokální data
-    const localUsers = getUsers();
-    const localUser = localUsers.find(u => u.email === email && u.password === password);
-    if (localUser) {
-        // CEO účet vytvoříme lokálně pokud neexistuje
-        if (email === CEO_EMAIL && password === CEO_PASSWORD && !localUser.isCEO) {
-            localUser.isCEO = true;
-        }
-        saveSession({userId: localUser.id, email: localUser.email, name: localUser.name, isCEO: localUser.isCEO || false, loggedInAt: new Date().toISOString()});
-        // Pokusit se synchronizovat na server (neblokuje)
-        apiPut('/users/' + localUser.id, { xp: localUser.xp || 0, bestScore: localUser.bestScore || 0, totalAnswered: localUser.totalAnswered || 0 });
-        return {success: true, message: 'Přihlášení proběhlo úspěšně! (offline režim)', isCEO: localUser.isCEO || false};
-    }
-    
     return {success: false, message: result.message || 'Nesprávný email nebo heslo.'};
 }
 
 async function handleRegister(name, email, password) {
-    // 1. Zkusit server
     const result = await apiPost('/register', { name, email, password });
     if (result.success) {
         const u = result.user;
@@ -393,24 +391,7 @@ async function handleRegister(name, email, password) {
         saveSession({userId: u.id, email: u.email, name: u.name, isCEO: false, loggedInAt: new Date().toISOString()});
         return {success: true, message: 'Registrace proběhla úspěšně!', isCEO: false};
     }
-    
-    // 2. Pokud server neodpovídá, registrovat lokálně
-    const localUsers = getUsers();
-    const existing = localUsers.find(u => u.email === email);
-    if (existing) return {success: false, message: 'Účet s tímto emailem již existuje.'};
-    
-    const id = 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    const newUser = {
-        id, email, password, name, isCEO: false,
-        xp: 0, bestScore: 0, achievements: [], streak: 0, bestStreak: 0, totalAnswered: 0, avatar: '',
-        registeredAt: new Date().toISOString()
-    };
-    localUsers.push(newUser);
-    saveUsers(localUsers);
-    saveSession({userId: id, email, name, isCEO: false, loggedInAt: new Date().toISOString()});
-    // Pokusit se synchronizovat na server (neblokuje)
-    apiPost('/register', { name, email, password });
-    return {success: true, message: 'Registrace proběhla úspěšně! (offline režim)', isCEO: false};
+    return {success: false, message: result.message || 'Registrace selhala.'};
 }
 
 function updateCurrentUser(upd) {
@@ -448,7 +429,17 @@ async function renderLeaderboard(containerId) {
     }
     if (players.length === 0) players = MOCK_LEADERBOARD;
     const ln = ['','Chodec','Žák','Řidič','Závodník','Profesionál','Mistr silnic','Legenda','Bůh volantu'];
-    c.innerHTML = `<div class="table-responsive"><table class="leaderboard-table"><thead><tr><th style="width:50px;">#</th><th>Hráč</th><th style="width:120px;">Level</th><th style="width:100px;">XP</th></tr></thead><tbody>${
+    // Načíst duels_won z API
+    let duelsWonMap = {};
+    try {
+        const usersRes = await fetch(API_URL + '/users');
+        const usersData = await usersRes.json();
+        if (usersData.success) {
+            usersData.users.forEach(u => { duelsWonMap[u.id] = u.duels_won || 0; });
+        }
+    } catch(e) {}
+    
+    c.innerHTML = `<div class="table-responsive"><table class="leaderboard-table"><thead><tr><th style="width:50px;">#</th><th>Hráč</th><th style="width:120px;">Level</th><th style="width:100px;">XP</th><th style="width:100px;">🏆 Výhry</th></tr></thead><tbody>${
         players.map((p,i)=>{
             const r=i+1; const lv=getLevel(p.xp||0); const lvName=ln[lv.level]||'Chodec';
             let rc='rank-default',m=''; if(r===1){rc='rank-1';m='🥇'}else if(r===2){rc='rank-2';m='🥈'}else if(r===3){rc='rank-3';m='🥉'}
@@ -456,6 +447,7 @@ async function renderLeaderboard(containerId) {
                 :`<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,107,0,0.15);display:inline-flex;align-items:center;justify-content:center;margin-right:0.5rem;font-size:0.75rem;color:#ff6b00;font-weight:700;flex-shrink:0;">${(p.name||'?').charAt(0)}</div>`;
 const crown = p.isCEO ? '<i class="fas fa-crown" style="color:#fbbf24;"></i>' : '';
 const devBadge = p.isCEO ? '<span style="font-size:0.75rem;font-weight:700;color:#ff8c00;border:1.5px solid #ff8c00;background-color:rgba(255, 140, 0, 0.15);padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px;">Dev</span>' : '';
+const duelsWon = duelsWonMap[p.id] || 0;
 
 return `<tr class="animate__animated animate__fadeIn" style="animation-delay:${i*0.05}s;">
     <td>
@@ -479,6 +471,10 @@ return `<tr class="animate__animated animate__fadeIn" style="animation-delay:${i
     <td>
         <span style="font-weight:700;font-size:0.95rem;color:var(--text-primary);">${(p.xp||0).toLocaleString()}</span>
         <span style="font-size:0.65rem;color:var(--text-muted);display:block;">XP</span>
+    </td>
+    <td style="text-align:center;">
+        <span style="font-weight:700;font-size:0.95rem;color:#fbbf24;">${duelsWon}</span>
+        <span style="font-size:0.65rem;color:var(--text-muted);display:block;">Výher</span>
     </td>
 </tr>`;
         }).join('')}</tbody></table></div>`;
@@ -736,7 +732,69 @@ function renderProfile() {
 // ==========================================
 // TEST LOGIC
 // ==========================================
-let testState={groupId:null,category:null,questions:[],currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false};
+let testState={groupId:null,category:null,questions:[],currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false,points:0,startTime:null,timerInterval:null,wrongAnswers:[]};
+
+// Timer - only for test mode (not for question browsing)
+function startTimer() {
+    testState.startTime = Date.now();
+    testState.timeRemaining = 1800; // 30 minut
+    const display = document.getElementById('timer-display');
+    if (!display) return;
+    if (testState.timerInterval) clearInterval(testState.timerInterval);
+    testState.timerInterval = setInterval(() => {
+        testState.timeRemaining--;
+        const mins = Math.floor(testState.timeRemaining / 60);
+        const secs = testState.timeRemaining % 60;
+        display.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+        if (testState.timeRemaining <= 60) {
+            display.style.color = '#ef4444';
+        }
+        if (testState.timeRemaining <= 0) {
+            clearInterval(testState.timerInterval);
+            testState.timerInterval = null;
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({icon:'warning',title:'Čas vypršel!',text:'Test byl automaticky ukončen.',timer:2000,showConfirmButton:false,background:'#1a1a2e',color:'#fff'});
+            }
+            showTestResults();
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (testState.timerInterval) {
+        clearInterval(testState.timerInterval);
+        testState.timerInterval = null;
+    }
+}
+
+// ==========================================
+// TEST HISTORY - from server API
+// ==========================================
+async function getTestHistory() {
+    const s = getCurrentSession();
+    if (!s) return [];
+    try {
+        const result = await apiGet('/test-history/' + s.userId);
+        if (result.success) return result.history || [];
+        return [];
+    } catch { return []; }
+}
+
+async function saveTestHistory(entry) {
+    const s = getCurrentSession();
+    if (!s) return;
+    try {
+        await apiPost('/test-history', { userId: s.userId, ...entry });
+    } catch(e) {
+        // Fallback to localStorage if server fails
+        try {
+            const history = JSON.parse(localStorage.getItem('autoskolaProHistory_' + s.userId) || '[]');
+            history.unshift(entry);
+            if (history.length > 50) history.length = 50;
+            localStorage.setItem('autoskolaProHistory_' + s.userId, JSON.stringify(history));
+        } catch {}
+    }
+}
 
 function loadGroups(){return getAppData().groups||[];}
 function getAllQuestionsForGroup(gid){const g=getAppData().groups.find(x=>x.id===gid);if(!g)return[];const a=[];Object.keys(g.categories||{}).forEach(k=>{if(Array.isArray(g.categories[k]))a.push(...g.categories[k]);});return a;}
@@ -784,11 +842,45 @@ function renderProgressCircle(pct,size=36){const r=(size/2)-4;const c=2*Math.PI*
 async function displayGroups(containerId) {
     const c=document.getElementById(containerId);if(!c)return;
     const groups=loadGroups();
-    // Přidáme "Dopravní značky" jako první skupinu
     let html = '';
-    // Karta pro Dopravní značky
-    const signsData = getSignsData();
-    const signCount = signsData.signs.length;
+    // Karta Duel
+    html += `<div class="group-card" data-group-id="group_duel" style="border-color:rgba(255,107,0,0.3);background:linear-gradient(135deg,rgba(255,107,0,0.08),rgba(255,107,0,0.02));">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+            <div>
+                <div class="group-letter" style="font-size:2.5rem;"><i class="fas fa-crosshairs"></i></div>
+                <div class="group-name" style="font-weight:700;">Duel</div>
+            </div>
+            <div style="flex-shrink:0;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚔️</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">Vyzvi kamaráda</div>
+            </div>
+        </div>
+        <div class="group-details">
+            <span><i class="fas fa-users me-1"></i>Multiplayer v reálném čase</span>
+            <span><i class="fas fa-bolt me-1" style="color:#fbbf24;"></i>Kdo je lepší?</span>
+        </div>
+    </div>`;
+    // Karta pro Online test (rychly test 25 otázek)
+
+    html += `<div class="group-card" data-group-id="group_online_test" style="border-color:rgba(59,130,246,0.3);background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(59,130,246,0.02));">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+            <div>
+                <div class="group-letter" style="font-size:2.5rem;"><i class="fas fa-globe"></i></div>
+                <div class="group-name" style="font-weight:700;">Online test</div>
+            </div>
+            <div style="flex-shrink:0;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:#3b82f6;">25</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">otázek</div>
+            </div>
+        </div>
+        <div class="group-details">
+            <span><i class="fas fa-random me-1"></i>Náhodné otázky ze všech témat</span>
+            <span><i class="fas fa-bolt me-1" style="color:#fbbf24;"></i>Rychlý test</span>
+        </div>
+    </div>`;
+    // Karta pro Dopravní značky (serverové API)
+    const signsData = await getSignsData();
+    const signCount = signsData.success ? signsData.signs.length : 0;
     html += `<div class="group-card" data-group-id="group_signs" style="border-color:rgba(255,107,0,0.3);background:linear-gradient(135deg,rgba(255,107,0,0.08),rgba(255,107,0,0.02));">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
             <div>
@@ -802,7 +894,7 @@ async function displayGroups(containerId) {
         </div>
         <div class="group-details">
             <span><i class="fas fa-image me-1"></i>Prohlížení a testy</span>
-            <span>${signsData.categories.length} kategorií</span>
+            <span>${signsData.success ? signsData.categories.length : 0} kategorií</span>
         </div>
     </div>`;
     // Ostatní skupiny
@@ -816,8 +908,13 @@ async function displayGroups(containerId) {
     c.querySelectorAll('.group-card').forEach(card=>{
         card.addEventListener('click',function(){
             const gid = this.dataset.groupId;
-            if (gid === 'group_signs') {
+            if (gid === 'group_duel') {
+                showDuelModal();
+            } else if (gid === 'group_signs') {
                 showSignCategories();
+            } else if (gid === 'group_online_test') {
+                // Zobrazit výběr skupiny B nebo C
+                showTestGroupSelection();
             } else {
                 testState.groupId = gid;
                 showCategorySelection(gid);
@@ -827,13 +924,13 @@ async function displayGroups(containerId) {
 }
 
 // ==========================================
-// DOPRAVNÍ ZNAČKY - PROHLÍŽENÍ
+// DOPRAVNÍ ZNAČKY - PROHLÍŽENÍ (z API)
 // ==========================================
-function showSignCategories() {
+async function showSignCategories() {
     const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results'),s5=document.getElementById('step-profile');
     const con=document.getElementById('category-cards');if(!con)return;
-    const data = getSignsData();
-    const cats = data.categories;
+    const data = await getSignsData();
+    const cats = data.success ? data.categories : [];
     if (cats.length === 0) {
         con.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Zatím žádné kategorie značek. CEO je může přidat v admin panelu.</p></div>';
     } else {
@@ -864,14 +961,14 @@ function showSignCategories() {
     document.getElementById('back-to-groups')?.addEventListener('click',function(){s1.classList.remove('d-none');s2.classList.add('d-none');testState.groupId=null;},{once:true});
 }
 
-function showSignsInCategory(catId) {
-    const data = getSignsData();
+async function showSignsInCategory(catId) {
+    const data = await getSignsData();
+    if (!data.success) return;
     const cat = data.categories.find(c => c.id === catId);
     if (!cat) return;
     const signs = data.signs.filter(s => s.categoryId === catId);
     const s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');
     const con=document.getElementById('question-container');if(!con)return;
-    // Zobrazíme v test interface jako prohlížeč
     if (signs.length === 0) {
         con.innerHTML = `<div class="empty-state"><i class="fas fa-traffic-light"></i><p>Žádné značky v této kategorii.</p></div>`;
     } else {
@@ -890,19 +987,20 @@ function showSignsInCategory(catId) {
         `).join('')}</div>`;
     }
     if(s2&&s3){s2.classList.add('d-none');s3.classList.remove('d-none');}
-    // Nastavíme exit tlačítko pro prohlížení (bez once:true)
     const exitBtn = document.getElementById('exit-test-btn');
     if (exitBtn) {
-        exitBtn._handler = function(){s3.classList.add('d-none');s2.classList.remove('d-none');};
+        const handler = function(){s3.classList.add('d-none');s2.classList.remove('d-none');};
         exitBtn.removeEventListener('click', exitBtn._handler);
-        exitBtn.addEventListener('click', exitBtn._handler);
+        exitBtn._handler = handler;
+        exitBtn.addEventListener('click', handler);
     }
     document.getElementById('prev-question-btn')?.style.setProperty('display','none');
     document.getElementById('next-question-btn')?.style.setProperty('display','none');
 }
 
-function showSignDetail(signId) {
-    const data = getSignsData();
+async function showSignDetail(signId) {
+    const data = await getSignsData();
+    if (!data.success) return;
     const sign = data.signs.find(s => s.id === signId);
     if (!sign) return;
     const cat = data.categories.find(c => c.id === sign.categoryId);
@@ -919,10 +1017,11 @@ function showSignDetail(signId) {
 }
 
 // ==========================================
-// TEST Z DOPRAVNÍCH ZNAČEK
+// TEST Z DOPRAVNÍCH ZNAČEK (z API)
 // ==========================================
-function startSignTest(catId) {
-    const data = getSignsData();
+async function startSignTest(catId) {
+    const data = await getSignsData();
+    if (!data.success) return;
     const cat = data.categories.find(c => c.id === catId);
     if (!cat) return;
     const signs = data.signs.filter(s => s.categoryId === catId);
@@ -930,7 +1029,6 @@ function startSignTest(catId) {
         showInfoModal('fa-exclamation-circle', 'Málo značek', 'Pro test je potřeba alespoň 4 značky v kategorii.', 'OK');
         return;
     }
-    // Vytvoříme otázky: "Která značka je ...?" s 4 možnostmi
     const questions = signs.map(sign => {
         const others = signs.filter(s => s.id !== sign.id);
         const shuffledOthers = others.sort(() => Math.random() - 0.5).slice(0, 3);
@@ -956,29 +1054,46 @@ function startSignTest(catId) {
 }
 
 // ==========================================
-// CATEGORY SELECTION (původní)
+// CATEGORY SELECTION
 // ==========================================
+let remoteTopicCountsCache = {};
+async function getRemoteTopicCounts() {
+    if (Object.keys(remoteTopicCountsCache).length > 0) return remoteTopicCountsCache;
+    const results = await Promise.allSettled(REMOTE_TOPICS.map(async rt => {
+        try {
+            const info = await getRemoteTopicInfo(rt.topic);
+            return { topic: rt.topic, count: Number(info.total_questions) || '?' };
+        } catch { return { topic: rt.topic, count: '?' }; }
+    }));
+    for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) {
+            remoteTopicCountsCache[r.value.topic] = r.value.count;
+        }
+    }
+    return remoteTopicCountsCache;
+}
+
 async function showCategorySelection(gid) {
     const g=getAppData().groups.find(x=>x.id===gid);if(!g)return;
     const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results'),s5=document.getElementById('step-profile');
     const con=document.getElementById('category-cards');if(!con)return;
     let cats=[];
     if (gid === 'group_online') {
-        const overlay = showLoadingScreen('Načítám online témata...');
-        try {
-            const topicInfos = await Promise.all(REMOTE_TOPICS.map(async rt => {
-                let info = null;
-                try { info = await getRemoteTopicInfo(rt.topic); } catch (e) { info = { total_questions: 0 }; }
-                return { key: rt.key, icon: rt.icon, name: rt.name, topic: rt.topic, info };
-            }));
-            const unknown = topicInfos.some(item => !item.info || !Number(item.info.total_questions));
-            const sumCount = unknown ? '??' : topicInfos.reduce((sum, item) => sum + (Number(item.info.total_questions) || 0), 0);
-            cats = topicInfos.map(item => ({ key: item.key, icon: item.icon, name: item.name, count: item.info && Number(item.info.total_questions) ? Number(item.info.total_questions) : '??' }));
-            cats.unshift({ key: 'remote_all', icon: 'fa-layer-group', name: 'Všechny otázky', count: unknown ? '??' : sumCount });
-        } catch (error) {
-            cats = REMOTE_TOPICS.map(rt => ({ key: rt.key, icon: rt.icon, name: rt.name, count: '??' }));
-            cats.unshift({ key: 'remote_all', icon: 'fa-layer-group', name: 'Všechny otázky', count: '??' });
-        } finally { if (overlay) overlay.remove(); }
+        cats = REMOTE_TOPICS.map(rt => ({ key: rt.key, icon: rt.icon, name: rt.name, count: '...', desc: 'Načítám...' }));
+        cats.unshift({ key: 'remote_all', icon: 'fa-layer-group', name: 'Všechny otázky', count: '...', desc: 'Načítám...' });
+        con.innerHTML=cats.map(cat=>`<div class="category-card" data-category="${cat.key}"><div class="category-icon"><i class="fas ${cat.icon}"></i></div><div class="category-content"><div class="category-title">${cat.name}</div><div class="category-desc" style="font-size:0.7rem;color:var(--text-muted);">${cat.desc||''}</div></div><div class="category-count" style="opacity:0.5;">${cat.count}</div></div>`).join('');
+        getRemoteTopicCounts().then(counts => {
+            let sum = 0;
+            cats = REMOTE_TOPICS.map(rt => {
+                const c = counts[rt.topic] || '?';
+                if (typeof c === 'number') sum += c;
+                return { key: rt.key, icon: rt.icon, name: rt.name, count: c, desc: `${c} otázek` };
+            });
+            cats.unshift({ key: 'remote_all', icon: 'fa-layer-group', name: 'Všechny otázky', count: sum, desc: `${sum} otázek celkem` });
+            con.innerHTML=cats.map(cat=>`<div class="category-card" data-category="${cat.key}"><div class="category-icon"><i class="fas ${cat.icon}"></i></div><div class="category-content"><div class="category-title">${cat.name}</div><div class="category-desc" style="font-size:0.7rem;color:var(--text-muted);">${cat.desc||''}</div></div><div class="category-count">${cat.count}</div></div>`).join('');
+            con.querySelectorAll('.category-card').forEach(card=>{card.addEventListener('click',function(){startTestForCategoryOnline(this.dataset.category);});});
+        });
+        con.querySelectorAll('.category-card').forEach(card=>{card.addEventListener('click',function(){startTestForCategoryOnline(this.dataset.category);});});
     } else {
         Object.keys(g.categories).forEach(key=>{
             const cnt=(g.categories[key]||[]).length;
@@ -992,11 +1107,31 @@ async function showCategorySelection(gid) {
         cats.push({key:'all',icon:'fa-layer-group',name:'Všechny otázky',count:getAllQuestionsForGroup(gid).length,desc:`Všechny otázky`});
         const wc=getWrongQuestionIds(gid).length;
         if(wc>0)cats.push({key:'wrong',icon:'fa-exclamation-triangle',name:'Otázky, které neumím',count:wc,desc:`Otázky, které jste již označil jako neumíte`});
+        con.innerHTML=cats.map(cat=>`<div class="category-card" data-category="${cat.key}"><div class="category-icon"><i class="fas ${cat.icon}"></i></div><div class="category-content"><div class="category-title">${cat.name}</div><div class="category-desc" style="font-size:0.7rem;color:var(--text-muted);">${cat.desc||''}</div></div><div class="category-count">${cat.count}</div></div>`).join('');
+        con.querySelectorAll('.category-card').forEach(card=>{
+            card.addEventListener('click',function(){
+                const category=this.dataset.category;
+                if(g.categories && g.categories[category]){
+                    chooseLocalCategoryMode(gid,category);
+                } else {
+                    testState.category=category;
+                    startTest(gid,category);
+                }
+            });
+        });
     }
-    con.innerHTML=cats.map(cat=>`<div class="category-card" data-category="${cat.key}"><div class="category-icon"><i class="fas ${cat.icon}"></i></div><div class="category-content"><div class="category-title">${cat.name}</div><div class="category-desc">${cat.desc||cat.count+' otázek'}</div></div><div class="category-count">${cat.count}</div></div>`).join('');
-    con.querySelectorAll('.category-card').forEach(card=>{card.addEventListener('click',function(){const category=this.dataset.category;if(gid !== 'group_online' && g.categories && g.categories[category]){chooseLocalCategoryMode(gid,category);}else{testState.category=category;startTest(gid,category);}});});
     if(s1&&s2){s1.classList.add('d-none');s2.classList.remove('d-none');if(s3)s3.classList.add('d-none');if(s4)s4.classList.add('d-none');if(s5)s5.classList.add('d-none');}
     document.getElementById('back-to-groups')?.addEventListener('click',function(){s1.classList.remove('d-none');s2.classList.add('d-none');testState.groupId=null;},{once:true});
+}
+
+function startTestForCategoryOnline(category) {
+    testState.category=category;
+    if(category==='remote_all'){
+        startRemoteTest(null, 0, true, 1200);
+    } else {
+        const topicId = parseInt(category.split('_')[1], 10);
+        startRemoteTest(null, topicId, false, 1200);
+    }
 }
 
 async function chooseLocalCategoryMode(gid, categoryKey){
@@ -1025,8 +1160,8 @@ async function chooseLocalCategoryMode(gid, categoryKey){
 
 async function startTest(gid,cat){
     if (cat.startsWith('remote_')) {
-        if (cat === 'remote_all') { await startRemoteTest(gid, 0, true); }
-        else { const topicId = parseInt(cat.split('_')[1], 10); await startRemoteTest(gid, topicId); }
+        if (cat === 'remote_all') { await startRemoteTest(gid, 0, true, 1200); }
+        else { const topicId = parseInt(cat.split('_')[1], 10); await startRemoteTest(gid, topicId, false, 1200); }
         return;
     }
     let qs;
@@ -1043,18 +1178,129 @@ async function startTest(gid,cat){
     showLoadingScreen(()=>{const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');if(s1&&s2&&s3){s1.classList.add('d-none');s2.classList.add('d-none');s3.classList.remove('d-none');}displayCurrentQuestion();});
 }
 
-async function startRemoteTest(gid, topicId, allTopics=false) {
-    let overlay = null;
-    try {
-        let totalAvailable = 0; let count = 25; let loadingText = '';
-        if (allTopics) {
-            try { const remoteCount = await getRemoteGroupCount(); totalAvailable = remoteCount || 0; count = Math.min(totalAvailable, 1200); loadingText = `Načítám ${count} online otázek...`; }
-            catch (e) { count = 1200; loadingText = 'Načítám 1200 online otázek...'; }
-        } else {
-            try { const info = await getRemoteTopicInfo(topicId); totalAvailable = Number(info.total_questions) || 0; count = Math.min(totalAvailable, 1200); loadingText = `Načítám ${count} online otázek...`; }
-            catch (e) { count = 200; loadingText = 'Načítám 200 online otázek...'; }
+// ==========================================
+// VÝBĚR SKUPINY (B nebo C)
+// ==========================================
+async function showTestGroupSelection() {
+    if (typeof Swal === 'undefined') {
+        // Fallback - rovnou spustíme B
+        testState.groupId = 'group_online_test';
+        testState.category = 'remote_all';
+        startRemoteTest('group_online_test', 0, true, 25);
+        return;
+    }
+    
+    const result = await Swal.fire({
+        title: 'Vyberte skupinu',
+        html: `
+            <div style="display:flex;gap:1rem;justify-content:center;margin:1rem 0;">
+                <div id="swal-group-b" style="flex:1;padding:1.5rem 1rem;border-radius:1rem;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05));border:2px solid rgba(59,130,246,0.3);cursor:pointer;transition:all 0.3s;text-align:center;">
+                    <div style="font-size:3rem;margin-bottom:0.5rem;">🚗</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#3b82f6;">Skupina B</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;">Osobní automobily</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem;">25 otázek • 30 min</div>
+                </div>
+                <div id="swal-group-c" style="flex:1;padding:1.5rem 1rem;border-radius:1rem;background:linear-gradient(135deg,rgba(255,107,0,0.15),rgba(255,107,0,0.05));border:2px solid rgba(255,107,0,0.3);cursor:pointer;transition:all 0.3s;text-align:center;">
+                    <div style="font-size:3rem;margin-bottom:0.5rem;">🚛</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#ff6b00;">Skupina C</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;">Nákladní vozidla</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem;">25 otázek • 30 min</div>
+                </div>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCancelButton: true,
+        cancelButtonText: 'Zpět',
+        background: '#1a1a2e', 
+        color: '#fff',
+        customClass: { popup: 'animate__animated animate__fadeInDown' },
+        didOpen: () => {
+            document.getElementById('swal-group-b')?.addEventListener('click', function() {
+                Swal.close();
+                testState.groupId = 'group_online_test';
+                testState.category = 'remote_all';
+                startRemoteTest('group_online_test', 0, true, 25);
+            });
+            document.getElementById('swal-group-c')?.addEventListener('click', function() {
+                Swal.close();
+                testState.groupId = 'group_online_test';
+                testState.category = 'remote_c';
+                startRemoteTestC(25);
+            });
         }
-        overlay = showLoadingScreen(loadingText);
+    });
+}
+
+async function startRemoteTestC(count=25) {
+    const loadingText = `Načítám ${count} otázek pro skupinu C...`;
+    let overlay = showLoadingScreen(loadingText);
+    try {
+        const response = await fetch(`${API_URL}/remote-test-c?count=${count}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        if (overlay) overlay.remove();
+        
+        if (!result.success || !result.questions || result.questions.length === 0) {
+            showInfoModal('fa-info-circle', 'Žádné otázky', 'Nepodařilo se načíst otázky pro skupinu C.', 'Zpět', () => {
+                const s1 = document.getElementById('step-group-selection'), s2 = document.getElementById('step-category-selection');
+                if (s1 && s2) { s2.classList.add('d-none'); s1.classList.remove('d-none'); }
+            });
+            return;
+        }
+        
+        const questions = result.questions.map(q => {
+            const answers = [
+                { text: q.correct_text, correct: true },
+                { text: q.wrong1_text, correct: false },
+                { text: q.wrong2_text, correct: false }
+            ].sort(() => Math.random() - 0.5);
+            const correctIndex = answers.findIndex(a => a.correct);
+            return {
+                id: q.question_id || `c_${Math.random().toString(36).slice(2,8)}`,
+                question: q.question_text || 'Otázka není dostupná.',
+                imageUrl: q.question_media || '',
+                options: answers.map(a => a.text),
+                correctIndex,
+                points: q.points || 1,
+                category: 'remote_c',
+                explanation: ''
+            };
+        });
+        
+        const shuffled = questions.sort(() => Math.random() - 0.5);
+        testState = {
+            groupId: 'group_online_test',
+            category: 'remote_c',
+            questions: shuffled,
+            currentIndex: 0,
+            score: 0,
+            totalAnswered: 0,
+            wrongQuestions: [],
+            isReviewMode: false,
+            answerTimestamps: [],
+            answered: false,
+            points: 0,
+            startTime: Date.now(),
+            timerInterval: null,
+            wrongAnswers: []
+        };
+        
+        const s1 = document.getElementById('step-group-selection'), s2 = document.getElementById('step-category-selection'), s3 = document.getElementById('step-test-interface');
+        if (s1 && s2 && s3) { s1.classList.add('d-none'); s2.classList.add('d-none'); s3.classList.remove('d-none'); }
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) { timerDisplay.textContent = '30:00'; timerDisplay.style.color = '#ef4444'; }
+        startTimer();
+        displayCurrentQuestion();
+    } catch (error) {
+        if (overlay) overlay.remove();
+        showInfoModal('fa-exclamation-circle', 'Chyba', 'Nepodařilo se načíst otázky: ' + error.message, 'OK');
+    }
+}
+
+async function startRemoteTest(gid, topicId, allTopics=false, count=25) {
+    const loadingText = allTopics ? `Načítám ${count} online otázek ze všech témat...` : `Načítám ${count} online otázek...`;
+    let overlay = showLoadingScreen(loadingText);
+    try {
         const questions = await fetchRemoteQuestions(allTopics ? 0 : topicId, count);
         if (overlay) overlay.remove();
         if (!questions || questions.length === 0) {
@@ -1062,9 +1308,12 @@ async function startRemoteTest(gid, topicId, allTopics=false) {
             return;
         }
         const shuffled = questions.sort(()=>Math.random()-0.5);
-        testState={groupId:gid,category:`remote_${topicId}`,questions:shuffled,currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false};
+        testState={groupId:gid,category:`remote_${topicId}`,questions:shuffled,currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false,points:0,startTime:Date.now(),timerInterval:null,wrongAnswers:[]};
         const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface');
         if(s1&&s2&&s3){s1.classList.add('d-none');s2.classList.add('d-none');s3.classList.remove('d-none');}
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) { timerDisplay.textContent = '30:00'; timerDisplay.style.color = '#ef4444'; }
+        startTimer();
         displayCurrentQuestion();
     } catch (error) {
         if (overlay) overlay.remove();
@@ -1093,6 +1342,7 @@ async function fetchRemoteQuestions(topicId, count=5) {
                 imageUrl: q.question_media || '',
                 options: answers.map(a => a.text),
                 correctIndex,
+                points: q.points || 1,
                 category: 'remote',
                 explanation: ''
             };
@@ -1121,43 +1371,222 @@ function displayCurrentQuestion(){
 function handleAnswer(selectedIndex,elapsed=0){
     if(testState.answered)return;testState.answered=true;
     const{questions,currentIndex}=testState;const q=questions[currentIndex];const correct=selectedIndex===q.correctIndex;
-    document.querySelectorAll('.option-btn').forEach(btn=>{btn.disabled=true;const idx=parseInt(btn.dataset.optionIndex);if(idx===q.correctIndex)btn.classList.add('correct');else if(idx===selectedIndex&&!correct)btn.classList.add('wrong');});
+    document.querySelectorAll('.option-btn').forEach(btn=>{btn.disabled=true;});
+    // Only show correct/wrong visually on buttons AFTER answer (not showing which is correct)
+    document.querySelectorAll('.option-btn').forEach(btn=>{
+        const idx=parseInt(btn.dataset.optionIndex);
+        if(idx===q.correctIndex)btn.classList.add('correct-after');
+        else if(idx===selectedIndex&&!correct)btn.classList.add('wrong-after');
+    });
     testState.totalAnswered++;testState.answerTimestamps.push(elapsed);
+    if (!testState.wrongAnswers) testState.wrongAnswers = [];
+    testState.wrongAnswers.push({
+        question: q.question,
+        options: q.options,
+        correctIndex: q.correctIndex,
+        selectedIndex: selectedIndex,
+        correct: correct,
+        imageUrl: q.imageUrl,
+        explanation: q.explanation || ''
+    });
     const user=getCurrentUser();if(user){const nt=(user.totalAnswered||0)+1;updateCurrentUser({totalAnswered:nt});if(nt>=10)checkAchievement('zelenac');if(nt>=15)checkAchievement('vytrvalec');}
     markQuestionAnswered(testState.groupId,q.id);
     if(correct){
-        testState.score++;addXP(10);updateStreak(true);
+        testState.score++;
+        testState.points = (testState.points||0) + (q.points || 2);
+        addXP(10);
+        updateStreak(true);
         if(testState.totalAnswered===1)checkAchievement('first_blood');if(elapsed<3)checkAchievement('speedster');
-        const xi=document.getElementById('xp-info');if(xi){const s=getStreakDisplay();let h='<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.8rem;">';h+='<span style="color:#22c55e;"><i class="fas fa-check-circle me-1"></i>Správně! +10 XP</span>';if(s)h+=`<span class="streak-badge" style="font-size:0.75rem;">🔥 ${s.count}x ${s.text}</span>`;h+='</div>';xi.innerHTML=h;}
+        const xi=document.getElementById('xp-info');if(xi){const s=getStreakDisplay();let h='<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.8rem;">';h+='<span style="color:#22c55e;"><i class="fas fa-check-circle me-1"></i>Správně!</span>';if(s)h+=`<span class="streak-badge" style="font-size:0.75rem;">🔥 ${s.count}x ${s.text}</span>`;h+='</div>';xi.innerHTML=h;}
     }else{
-        addWrongQuestion(testState.groupId,q.id);updateStreak(false);
-        const expl=q.explanation||'Žádné vysvětlení k dispozici.';
-        Swal.fire({icon:'error',title:'Špatně!',html:`<p style="margin-bottom:0.5rem;">Správná: <strong style="color:#22c55e;">${q.options[q.correctIndex].replace(/^[A-C]:\s*/,'')}</strong></p><div style="background:rgba(255,107,0,0.1);border-radius:0.75rem;padding:0.75rem;margin-top:0.5rem;text-align:left;"><small><i class="fas fa-lightbulb" style="color:#fbbf24;"></i> <strong>Tahák:</strong> ${expl}</small></div>`,timer:3000,showConfirmButton:false,background:'#1a1a2e',color:'#fff',iconColor:'#ef4444',customClass:{popup:'animate__animated animate__bounceIn'}});
+        // Do NOT show correct answer immediately - just mark as wrong silently
+        addWrongQuestion(testState.groupId,q.id);
+        updateStreak(false);
+        const xi=document.getElementById('xp-info');if(xi){xi.innerHTML='<div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:0.8rem;"><span style="color:#ef4444;"><i class="fas fa-times-circle me-1"></i>Špatně!</span></div>';}
     }
-    setTimeout(()=>nextQuestion(),correct?800:3000);
+    setTimeout(()=>nextQuestion(),800);
 }
 function nextQuestion(){testState.currentIndex++;displayCurrentQuestion();}
 function previousQuestion(){if(testState.currentIndex>0){testState.currentIndex--;testState.isReviewMode=true;displayCurrentQuestion();}}
 function updateNavButtons(){const p=document.getElementById('prev-question-btn'),n=document.getElementById('next-question-btn');if(p)p.style.display=testState.currentIndex>0?'flex':'none';if(n){const l=testState.currentIndex>=testState.questions.length-1;n.innerHTML=l?'<i class="fas fa-flag-checkered me-2"></i>Dokončit':'<i class="fas fa-arrow-right me-2"></i>Další';}}
 
 function showTestResults(){
-    const{score,totalAnswered}=testState;const pct=totalAnswered>0?Math.round((score/totalAnswered)*100):0;const passed=pct>=70;
+    const{score,totalAnswered,points}=testState;const pct=totalAnswered>0?Math.round((score/totalAnswered)*100):0;const passed=pct>=70;
+    stopTimer();
     const s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results');
     if(s3&&s4){s3.classList.add('d-none');s4.classList.remove('d-none');}
     const user=getCurrentUser();if(user&&pct>(user.bestScore||0))updateCurrentUser({bestScore:pct});if(pct===100&&totalAnswered>0)checkAchievement('genius');
     document.getElementById('final-score')&&(document.getElementById('final-score').textContent=score);
     document.getElementById('final-total')&&(document.getElementById('final-total').textContent=totalAnswered);
     document.getElementById('final-percentage')&&(document.getElementById('final-percentage').textContent=pct+'%');
+    document.getElementById('final-points')&&(document.getElementById('final-points').textContent=points||0);
     document.getElementById('final-passed')&&(document.getElementById('final-passed').textContent=passed?'Prospěl/a':'Neprospěl/a');
     const ri=document.getElementById('result-icon');if(ri){ri.className=passed?'fas fa-trophy':'fas fa-redo-alt';ri.style.color=passed?'#fbbf24':'#ef4444';}
     document.getElementById('new-test-btn')?.addEventListener('click',resetTest,{once:true});
-    const retry=document.getElementById('retry-wrong-btn');const hasWrong=getWrongQuestionIds(testState.groupId).length>0;
-    if(retry){if(hasWrong){retry.style.display='flex';retry.addEventListener('click',function(){const ids=getWrongQuestionIds(testState.groupId);if(ids.length>0){const all=getAllQuestionsForGroup(testState.groupId);testState.questions=all.filter(q=>ids.includes(q.id));testState.currentIndex=0;testState.score=0;testState.totalAnswered=0;testState.wrongQuestions=[];testState.isReviewMode=false;s4.classList.add('d-none');s3.classList.remove('d-none');displayCurrentQuestion();}},{once:true});}else{retry.style.display='none';}}
+    // Uložit do historie
+    if (user) {
+        const historyEntry = {
+            date: new Date().toISOString(),
+            score: score,
+            total: totalAnswered,
+            percentage: pct,
+            passed: passed,
+            points: points || 0,
+            category: testState.category,
+            wrongAnswers: testState.wrongAnswers || []
+        };
+        saveTestHistory(historyEntry);
+        
+        // Also update UI if history tab is visible
+        const historyTab = document.getElementById('step-history');
+        if (historyTab && !historyTab.classList.contains('d-none')) {
+            renderTestHistory();
+        }
+    }
+    // Tlačítko pro review chybných otázek
+    const reviewBtn = document.getElementById('review-wrong-btn');
+    const reviewContainer = document.getElementById('wrong-questions-review');
+    if (reviewBtn && reviewContainer) {
+        const wrong = testState.wrongAnswers?.filter(a => !a.correct) || [];
+        if (wrong.length > 0) {
+            reviewBtn.style.display = 'flex';
+            reviewBtn.onclick = function() {
+                if (reviewContainer.style.display === 'none') {
+                    reviewContainer.style.display = 'block';
+                    reviewContainer.innerHTML = `<h6 style="font-weight:700;margin-bottom:0.75rem;color:#ef4444;"><i class="fas fa-exclamation-triangle me-1"></i>Chybné otázky (${wrong.length})</h6>
+                    ${wrong.map((w, i) => {
+                        const letters = ['A', 'B', 'C'];
+                        return `<div class="card-autoskola" style="padding:0.75rem;margin-bottom:0.5rem;text-align:left;">
+                            <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.5rem;">${i+1}. ${w.question}</div>
+                            ${w.imageUrl ? `<div class="text-center my-2"><img src="${w.imageUrl}" alt="" style="max-height:100px;border-radius:0.5rem;"></div>` : ''}
+                            <div style="display:flex;flex-direction:column;gap:0.25rem;">${w.options.map((opt, idx) => {
+                                let cls = 'option-btn-disabled';
+                                let bg = 'rgba(255,255,255,0.03)';
+                                if (idx === w.correctIndex) { cls = 'option-btn-correct'; bg = 'rgba(34,197,94,0.15)'; }
+                                else if (idx === w.selectedIndex && !w.correct) { cls = 'option-btn-wrong'; bg = 'rgba(239,68,68,0.15);'; }
+                                return `<div style="padding:0.5rem 0.75rem;border-radius:0.5rem;background:${bg};border:1px solid ${idx === w.correctIndex ? 'rgba(34,197,94,0.3)' : idx === w.selectedIndex && !w.correct ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.05)'};font-size:0.8rem;">
+                                    <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${idx === w.correctIndex ? 'rgba(34,197,94,0.2)' : idx === w.selectedIndex && !w.correct ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)'};font-size:0.7rem;font-weight:700;margin-right:0.5rem;">${letters[idx]}</span>
+                                    ${opt.replace(/^[A-C]:\s*/,'')}
+                                    ${idx === w.correctIndex ? ' <i class="fas fa-check-circle" style="color:#22c55e;"></i>' : ''}
+                                    ${idx === w.selectedIndex && !w.correct ? ' <i class="fas fa-times-circle" style="color:#ef4444;"></i>' : ''}
+                                </div>`;
+                            }).join('')}</div>
+                            ${w.explanation ? `<div style="margin-top:0.5rem;padding:0.5rem;background:rgba(255,107,0,0.1);border-radius:0.5rem;font-size:0.75rem;"><i class="fas fa-lightbulb" style="color:#fbbf24;"></i> ${w.explanation}</div>` : ''}
+                        </div>`;
+                    }).join('')}
+                    <button class="btn-autoskola btn-autoskola-sm" onclick="document.getElementById('wrong-questions-review').style.display='none'" style="font-size:0.75rem;">Skrýt</button>`;
+                } else {
+                    reviewContainer.style.display = 'none';
+                }
+            };
+        } else {
+            reviewBtn.style.display = 'none';
+        }
+    }
 }
 function resetTest(){
-    testState={groupId:null,category:null,questions:[],currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false};
+    stopTimer();
+    testState={groupId:null,category:null,questions:[],currentIndex:0,score:0,totalAnswered:0,wrongQuestions:[],isReviewMode:false,answerTimestamps:[],answered:false,points:0,startTime:null,timerInterval:null,wrongAnswers:[]};
     const s1=document.getElementById('step-group-selection'),s2=document.getElementById('step-category-selection'),s3=document.getElementById('step-test-interface'),s4=document.getElementById('step-test-results'),s5=document.getElementById('step-profile');
     if(s1&&s2&&s3&&s4){s4.classList.add('d-none');s3.classList.add('d-none');s2.classList.add('d-none');s1.classList.remove('d-none');if(s5)s5.classList.add('d-none');displayGroups('group-cards');}
+}
+
+// ==========================================
+// HISTORY TAB
+// ==========================================
+async function renderTestHistory() {
+    const list = document.getElementById('history-list');
+    const stats = document.getElementById('history-stats');
+    if (!list) return;
+    
+    list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i><p>Načítám historii...</p></div>';
+    
+    const history = await getTestHistory();
+    
+    if (history.length === 0) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-clock"></i><p>Zatím žádná historie testů. Dokonči svůj první test!</p></div>';
+        if (stats) stats.innerHTML = '';
+        return;
+    }
+    
+    // Stats
+    if (stats) {
+        const totalTests = history.length;
+        const avgScore = Math.round(history.reduce((s, h) => s + h.percentage, 0) / totalTests);
+        const bestScore = Math.max(...history.map(h => h.percentage));
+        const passedCount = history.filter(h => h.passed).length;
+        stats.innerHTML = `
+            <div class="stat-card" style="padding:0.5rem 1rem;"><div class="stat-value" style="font-size:1.2rem;">${totalTests}</div><div class="stat-label">Testů</div></div>
+            <div class="stat-card" style="padding:0.5rem 1rem;"><div class="stat-value" style="font-size:1.2rem;">${avgScore}%</div><div class="stat-label">Průměr</div></div>
+            <div class="stat-card" style="padding:0.5rem 1rem;"><div class="stat-value" style="font-size:1.2rem;">${bestScore}%</div><div class="stat-label">Nejlepší</div></div>
+            <div class="stat-card" style="padding:0.5rem 1rem;"><div class="stat-value" style="font-size:1.2rem;">${passedCount}/${totalTests}</div><div class="stat-label">Prospěl</div></div>
+        `;
+    }
+    
+    list.innerHTML = history.map((h, i) => {
+        const date = new Date(h.date || h.date).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return `<div class="history-card" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:0.75rem;border:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;" onclick="showTestDetail(${h.id})">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <div style="width:40px;height:40px;border-radius:50%;background:${h.passed ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};display:flex;align-items:center;justify-content:center;">
+                    <i class="fas ${h.passed ? 'fa-check' : 'fa-times'}" style="color:${h.passed ? '#22c55e' : '#ef4444'};font-size:1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-weight:600;font-size:0.9rem;">${h.percentage}% (${h.score}/${h.total})</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);">${date}</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span style="font-size:0.75rem;color:#fbbf24;font-weight:600;">${h.points || 0} bodů</span>
+                <i class="fas fa-chevron-right" style="color:var(--text-muted);font-size:0.75rem;"></i>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function showTestDetail(historyId) {
+    // Open the detail modal/expand with wrong answers
+    const historyEntry = document.querySelector(`.history-card[onclick*="${historyId}"]`);
+    if (!historyEntry) return;
+    
+    getTestHistory().then(history => {
+        const h = history.find(item => item.id === historyId);
+        if (!h) return;
+        
+        const wrong = (h.wrongAnswers || []).filter(a => !a.correct);
+        const detailDiv = document.createElement('div');
+        detailDiv.className = 'modal-overlay active';
+        detailDiv.innerHTML = `
+            <div class="modal-content" style="max-width:600px;max-height:80vh;overflow-y:auto;">
+                <div class="modal-icon"><i class="fas ${h.passed ? 'fa-trophy' : 'fa-redo-alt'}" style="color:${h.passed ? '#fbbf24' : '#ef4444'};"></i></div>
+                <h3>Výsledek testu</h3>
+                <div style="display:flex;gap:0.5rem;text-align:center;justify-content:center;margin:1rem 0;flex-wrap:wrap;">
+                    <div style="flex:1;"><div style="font-size:1.3rem;font-weight:900;color:#22c55e;">${h.score}</div><div class="text-muted small">Správně</div></div>
+                    <div style="flex:1;"><div style="font-size:1.3rem;font-weight:900;color:var(--text-primary);">${h.total}</div><div class="text-muted small">Celkem</div></div>
+                    <div style="flex:1;"><div style="font-size:1.3rem;font-weight:900;color:#ff6b00;">${h.percentage}%</div><div class="text-muted small">Úspěšnost</div></div>
+                    <div style="flex:1;"><div style="font-size:1.3rem;font-weight:900;color:#fbbf24;">${h.points || 0}</div><div class="text-muted small">Body</div></div>
+                </div>
+                <div style="text-align:center;margin-bottom:1rem;">
+                    <span style="display:inline-block;padding:0.2rem 1rem;border-radius:999px;background:${h.passed ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};color:${h.passed ? '#22c55e' : '#ef4444'};font-weight:700;font-size:0.85rem;">
+                        ${h.passed ? 'Prospěl/a' : 'Neprospěl/a'}
+                    </span>
+                </div>
+                ${wrong.length > 0 ? `
+                    <hr style="border-color:rgba(255,255,255,0.1);margin:0.75rem 0;">
+                    <h6 style="font-weight:700;margin-bottom:0.75rem;color:#ef4444;"><i class="fas fa-exclamation-triangle me-1"></i>Chybné otázky (${wrong.length})</h6>
+                    ${wrong.slice(0, 5).map((w, i) => `
+                        <div style="padding:0.5rem;background:rgba(255,255,255,0.03);border-radius:0.5rem;margin-bottom:0.35rem;font-size:0.8rem;">
+                            <strong>${i+1}.</strong> ${w.question}
+                            <div style="color:#22c55e;margin-top:0.25rem;">✓ ${w.options[w.correctIndex]?.replace(/^[A-C]:\s*/,'')}</div>
+                        </div>
+                    `).join('')}
+                    ${wrong.length > 5 ? `<div style="text-align:center;color:var(--text-muted);font-size:0.75rem;">...a dalších ${wrong.length - 5} chyb</div>` : ''}
+                ` : ''}
+                <button class="btn-autoskola btn-autoskola-sm modal-close-btn" style="margin-top:1rem;">Zavřít</button>
+            </div>`;
+        document.body.appendChild(detailDiv);
+        detailDiv.querySelector('.modal-close-btn').addEventListener('click', () => detailDiv.remove());
+        detailDiv.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+    });
 }
 
 // ==========================================
@@ -1181,50 +1610,28 @@ function adminLoadGroups(){
     sel.addEventListener('change',function(){const gid=this.value;const cs=document.getElementById('admin-category-select');if(cs){cs.disabled=!gid;cs.value='';}displayAdminQuestions(gid,null);if(tabs&&gid){tabs.querySelectorAll('[data-group-id]').forEach(b=>{b.style.background='rgba(255,255,255,0.05)';b.style.color='rgba(255,255,255,0.7)';b.style.borderColor='rgba(255,255,255,0.1)';if(b.dataset.groupId===gid){b.style.background='rgba(255,107,0,0.2)';b.style.color='#ff6b00';b.style.borderColor='rgba(255,107,0,0.3)';}});}});
 }
 
-function displayAdminQuestions(gid,cat){
-    const c=document.getElementById('admin-questions-list');if(!c)return;
-    if(!gid){c.innerHTML='<div class="empty-state"><i class="fas fa-arrow-left"></i><p>Vyberte skupinu.</p></div>';return;}
-    const data=getAppData();const group=data.groups.find(g=>g.id===gid);if(!group){c.innerHTML='<div class="empty-state"><p>Skupina nenalezena.</p></div>';return;}
-    let questions=[];Object.keys(group.categories||{}).forEach(key=>{if(!cat||cat===key)(group.categories[key]||[]).forEach(q=>questions.push({...q,catKey:key}));});
-    if(questions.length===0){c.innerHTML='<div class="empty-state"><i class="fas fa-question-circle"></i><p>Žádné otázky.</p></div>';return;}
-    const letters=['A','B','C'];
-    c.innerHTML=questions.map((q,idx)=>{let cn=q.catKey;if(cn==='znacky')cn='Značky';else if(cn==='situace')cn='Situace';else cn=cn.charAt(0).toUpperCase()+cn.slice(1);return`<div class="question-item" style="padding:0.75rem;animation-delay:${idx*0.03}s"><div class="d-flex justify-content-between align-items-start gap-2"><div><div class="q-text" style="font-size:0.8rem;">${q.question}</div><div class="q-meta" style="font-size:0.75rem;"><span class="question-counter" style="font-size:0.7rem;">${cn}</span><span class="ms-2">Správně: <span class="q-correct">${letters[q.correctIndex]}: ${q.options[q.correctIndex].replace(/^[A-C]:\s*/,'')}</span></span>${q.imageUrl?'<span class="ms-2"><i class="fas fa-image" style="color:#ff6b00;"></i></span>':''}${q.explanation?'<span class="ms-2"><i class="fas fa-lightbulb" style="color:#fbbf24;"></i></span>':''}</div></div><button class="delete-btn" data-qid="${q.id}" data-gid="${gid}" data-cat="${q.catKey}" style="padding:0.2rem 0.4rem;"><i class="fas fa-trash-alt" style="font-size:0.8rem;"></i></button></div></div>`;}).join('');
-    c.querySelectorAll('.delete-btn').forEach(btn=>{btn.addEventListener('click',function(){if(confirm('Smazat otázku?'))deleteQuestion(this.dataset.gid,this.dataset.cat,this.dataset.qid);});});
-}
-
-function deleteQuestion(gid,cat,qid){const data=getAppData();const group=data.groups.find(g=>g.id===gid);if(!group||!group.categories[cat])return;const idx=group.categories[cat].findIndex(q=>q.id===qid);if(idx!==-1){group.categories[cat].splice(idx,1);saveAppData(data);}displayAdminQuestions(document.getElementById('admin-group-select')?.value||gid,null);}
-function addNewGroup(letter,name){const data=getAppData();if(data.groups.find(g=>g.letter.toUpperCase()===letter.toUpperCase()))return{success:false,message:'Skupina již existuje.'};const dc={};data.availableCategories.forEach(c=>{dc[c]=[];});data.groups.push({id:'group_'+letter.toLowerCase(),letter:letter.toUpperCase(),name,categories:dc});saveAppData(data);return{success:true,message:`Skupina ${letter.toUpperCase()} přidána.`};}
-function addNewQuestion(gid,cat,text,opts,ci,img,expl){const data=getAppData();const group=data.groups.find(g=>g.id===gid);if(!group)return{success:false,message:'Skupina nenalezena.'};if(!group.categories[cat])group.categories[cat]=[];const f=opts.map((opt,idx)=>{const l=String.fromCharCode(65+idx);return opt.startsWith(l+':')?opt:l+': '+opt;});group.categories[cat].push({id:generateId(),question:text,imageUrl:img||'',options:f,correctIndex:ci,category:cat,explanation:expl||''});saveAppData(data);const sel=document.getElementById('admin-group-select'),cs=document.getElementById('admin-category-select');if(sel&&cs)displayAdminQuestions(sel.value,cs.value);return{success:true,message:'Otázka přidána.'};}
-function deleteGroup(gid){const data=getAppData();const idx=data.groups.findIndex(g=>g.id===gid);if(idx===-1)return{success:false,message:'Skupina nenalezena.'};data.groups.splice(idx,1);saveAppData(data);return{success:true,message:'Skupina smazána.'};}
-function addNewCategory(key,label){const data=getAppData();if(data.availableCategories.includes(key))return{success:false,message:'Kategorie již existuje.'};data.availableCategories.push(key);data.groups.forEach(g=>{if(!g.categories[key])g.categories[key]=[];});saveAppData(data);return{success:true,message:`Kategorie "${label}" přidána.`};}
-function resetDatabase(){localStorage.removeItem(APP_DATA_KEY);localStorage.removeItem(APP_USERS_KEY);localStorage.removeItem(APP_SESSION_KEY);localStorage.removeItem(APP_SIGNS_KEY);Object.keys(localStorage).forEach(k=>{if(k.startsWith('autoskolaProProgress_')||k.startsWith('autoskolaProWrong_')||k.startsWith('autoskolaProCorrectTrack_'))localStorage.removeItem(k);});initAppData();const users=getUsers();const ceo=users.find(u=>u.isCEO);if(ceo)saveSession({userId:ceo.id,email:ceo.email,name:ceo.name,isCEO:true,loggedInAt:new Date().toISOString()});}
-
 // ==========================================
-// ADMIN - DOPRAVNÍ ZNAČKY
+// ADMIN SIGNS (z API)
 // ==========================================
-function initAdminSigns() {
-    renderSignCategories();
-    renderAdminSignsList();
-    
-    // Přidat kategorii
-    document.getElementById('add-sign-category-btn')?.addEventListener('click', function() {
+async function initAdminSigns() {
+    await renderSignCategories();
+    await renderAdminSignsList();
+    document.getElementById('add-sign-category-btn')?.addEventListener('click', async function() {
         const name = document.getElementById('sign-category-name').value.trim();
         const icon = document.getElementById('sign-category-icon').value.trim() || 'fa-triangle-exclamation';
         if (!name) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Zadejte název kategorie.', 'OK'); return; }
-        const r = addSignCategory(name, icon);
+        const r = await addSignCategory(name, icon);
         if (r.success) {
             showInfoModal('fa-check-circle', 'Hotovo', r.message, 'OK');
             document.getElementById('sign-category-name').value = '';
             document.getElementById('sign-category-icon').value = 'fa-triangle-exclamation';
-            renderSignCategories();
-            renderAdminSignsList();
+            await renderSignCategories();
+            await renderAdminSignsList();
         } else {
             showInfoModal('fa-exclamation-circle', 'Chyba', r.message, 'OK');
         }
     });
-    
-    // Přidat značku
-    document.getElementById('add-sign-form')?.addEventListener('submit', function(e) {
+    document.getElementById('add-sign-form')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const catId = document.getElementById('sign-category-select').value;
         const name = document.getElementById('sign-name').value.trim();
@@ -1232,29 +1639,27 @@ function initAdminSigns() {
         const description = document.getElementById('sign-description').value.trim();
         if (!catId) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Vyberte kategorii.', 'OK'); return; }
         if (!name) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Zadejte název značky.', 'OK'); return; }
-        const r = addSign(catId, name, imageUrl, description);
+        const r = await addSign(catId, name, imageUrl, description);
         if (r.success) {
             showInfoModal('fa-check-circle', 'Hotovo', r.message, 'OK');
             document.getElementById('sign-name').value = '';
             document.getElementById('sign-image').value = '';
             document.getElementById('sign-description').value = '';
-            renderAdminSignsList();
+            await renderAdminSignsList();
         } else {
             showInfoModal('fa-exclamation-circle', 'Chyba', r.message, 'OK');
         }
     });
-    
-    // Filtr značek
     document.getElementById('admin-sign-filter-category')?.addEventListener('change', renderAdminSignsList);
 }
 
-function renderSignCategories() {
+async function renderSignCategories() {
     const list = document.getElementById('sign-categories-list');
     const select = document.getElementById('sign-category-select');
     const filter = document.getElementById('admin-sign-filter-category');
     if (!list) return;
-    const data = getSignsData();
-    const cats = data.categories;
+    const data = await getSignsData();
+    const cats = data.success ? data.categories : [];
     if (cats.length === 0) {
         list.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Zatím žádné kategorie značek.</p></div>';
         if (select) select.innerHTML = '<option value="">Nejprve vytvořte kategorii</option>';
@@ -1269,7 +1674,7 @@ function renderSignCategories() {
                 <span style="font-weight:600;font-size:0.9rem;">${c.name}</span>
                 <span style="font-size:0.75rem;color:var(--text-muted);">(${count} značek)</span>
             </div>
-            <button class="delete-btn" onclick="if(confirm('Smazat kategorii "${c.name}" i se všemi značkami?')){deleteSignCategory('${c.id}');renderSignCategories();renderAdminSignsList();}" style="padding:0.15rem 0.4rem;font-size:0.75rem;">
+            <button class="delete-btn" onclick="if(confirm('Smazat kategorii \\'${c.name}\\' i se všemi značkami?')){deleteSignCategory('${c.id}');renderSignCategories();renderAdminSignsList();}" style="padding:0.15rem 0.4rem;font-size:0.75rem;">
                 <i class="fas fa-trash-alt"></i>
             </button>
         </div>`;
@@ -1279,10 +1684,11 @@ function renderSignCategories() {
     if (filter) filter.innerHTML = '<option value="">Všechny kategorie</option>' + opts;
 }
 
-function renderAdminSignsList() {
+async function renderAdminSignsList() {
     const list = document.getElementById('admin-signs-list');
     if (!list) return;
-    const data = getSignsData();
+    const data = await getSignsData();
+    if (!data.success) { list.innerHTML = '<div class="empty-state"><i class="fas fa-traffic-light"></i><p>Chyba načítání značek.</p></div>'; return; }
     const filterCat = document.getElementById('admin-sign-filter-category')?.value || '';
     let signs = data.signs;
     if (filterCat) signs = signs.filter(s => s.categoryId === filterCat);
@@ -1299,15 +1705,26 @@ function renderAdminSignsList() {
                 <div class="sign-desc" style="font-size:0.75rem;">${s.description ? s.description.substring(0, 100) + (s.description.length > 100 ? '...' : '') : 'Bez popisu'}</div>
                 <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.2rem;">${cat ? cat.name : 'Bez kategorie'}</div>
             </div>
-            <button class="delete-btn" onclick="if(confirm('Smazat značku "${s.name}"?')){deleteSign('${s.id}');renderAdminSignsList();}" style="padding:0.2rem 0.4rem;">
+            <button class="delete-btn" onclick="if(confirm('Smazat značku \\'${s.name}\\'?')){deleteSignAPI('${s.id}');renderAdminSignsList();}" style="padding:0.2rem 0.4rem;">
                 <i class="fas fa-trash-alt" style="font-size:0.8rem;"></i>
             </button>
         </div>`;
     }).join('');
 }
 
+// Delete sign category (from admin)
+async function deleteSignCategory(catId) {
+    const r = await deleteSignCategoryAPI(catId);
+    if (r.success) {
+        await renderSignCategories();
+        await renderAdminSignsList();
+    } else {
+        showInfoModal('fa-exclamation-circle', 'Chyba', r.message || 'Nepodařilo se smazat kategorii.', 'OK');
+    }
+}
+
 // ==========================================
-// ADMIN - UŽIVATELÉ A STATISTIKY
+// ADMIN - USERS & STATS
 // ==========================================
 async function renderAdminUsers() {
     const tbody = document.getElementById('users-table-body');
@@ -1394,7 +1811,7 @@ async function adminDeleteUser(userId, userName) {
 }
 
 // ==========================================
-// ADMIN RESET MODAL
+// ADMIN RESET
 // ==========================================
 function initAdminReset() {
     const resetBtn = document.getElementById('reset-db-btn');
@@ -1416,14 +1833,22 @@ function initAdminReset() {
     if (modalClose) { modalClose.addEventListener('click', function() { modal.classList.remove('active'); }); }
     if (modal) { modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); }); }
     if (modalConfirm) {
-        modalConfirm.addEventListener('click', function() {
+        modalConfirm.addEventListener('click', async function() {
             const val = modalInput?.value.trim().toUpperCase();
             if (val !== 'SMAZAT') { alert('Pro potvrzení napište SMAZAT'); return; }
-            resetDatabase();
-            modal.classList.remove('active');
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Resetováno', text: 'Databáze byla resetována.', timer: 2000, showConfirmButton: false, background: '#1a1a2e', color: '#fff' });
-            else alert('Databáze resetována');
-            setTimeout(() => location.reload(), 2000);
+            try {
+                const r = await apiPost('/admin/reset', {});
+                if (r.success) {
+                    modal.classList.remove('active');
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Resetováno', text: 'Databáze byla resetována.', timer: 2000, showConfirmButton: false, background: '#1a1a2e', color: '#fff' });
+                    else alert('Databáze resetována');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    alert('Chyba resetu: ' + (r.message || 'neznámá'));
+                }
+            } catch(e) {
+                alert('Chyba: ' + e.message);
+            }
         });
     }
 }
@@ -1439,7 +1864,6 @@ function initializeAdminPanel(){
     renderAdminProgress();
     initAdminReset();
     initAdminSigns();
-
     document.getElementById('announcement-form')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const text = document.getElementById('announcement-text').value.trim();
@@ -1590,21 +2014,443 @@ async function initializeLeaderboardPage() {
 async function initializeAppPage(){
     if(!getCurrentSession()){showLoginRequiredModal();return;}
     await displayGroups('group-cards');
-    document.querySelectorAll('[data-tab]').forEach(tab=>{tab.addEventListener('click',function(){const t=this.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.tab-content').forEach(c=>c.classList.add('d-none'));document.getElementById(t)?.classList.remove('d-none');if(t==='step-profile')renderProfile();});});
+    document.querySelectorAll('[data-tab]').forEach(tab=>{tab.addEventListener('click',function(){const t=this.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.tab-content').forEach(c=>c.classList.add('d-none'));document.getElementById(t)?.classList.remove('d-none');if(t==='step-profile')renderProfile();if(t==='step-history')renderTestHistory();});});
     document.getElementById('exit-test-btn')?.addEventListener('click',function(){const s3=document.getElementById('step-test-interface'),s2=document.getElementById('step-category-selection');if(s3&&s2){s3.classList.add('d-none');s2.classList.remove('d-none');}});
     document.getElementById('prev-question-btn')?.addEventListener('click',previousQuestion);
     document.getElementById('next-question-btn')?.addEventListener('click',function(){if(testState.currentIndex>=testState.questions.length-1)showTestResults();else nextQuestion();});
+    
+    // Inicializace poslechu duel notifikací
+    initDuelNotificationListener();
 }
 
 // ==========================================
 // PARTICLES
 // ==========================================
-function createParticles(){if(document.querySelector('.particles'))return;const c=document.createElement('div');c.className='particles';for(let i=0;i<12;i++){const p=document.createElement('div');p.className='particle';p.style.cssText=`left:${Math.random()*100}%;width:${Math.random()*2+2}px;height:${p.style.width};animation-duration:${Math.random()*15+20}s;animation-delay:${Math.random()*15}s;opacity:${Math.random()*0.3+0.1}`;c.appendChild(p);}document.body.appendChild(c);}
+function createParticles(){if(document.querySelector('.particles'))return;const c=document.createElement('div');c.className='particles';for(let i=0;i<12;i++){const p=document.createElement('div');p.className='particle';p.style.cssText=`left:${Math.random()*100}%;width:${Math.random()*2+2}px;height:${Math.random()*2+2}px;animation-duration:${Math.random()*15+20}s;animation-delay:${Math.random()*15}s;opacity:${Math.random()*0.3+0.1}`;c.appendChild(p);}document.body.appendChild(c);}
+
+// ==========================================
+// MINI ADMIN FUNCTIONS (addNewGroup, addNewCategory, etc.)
+// ==========================================
+function addNewGroup(letter, name) {
+    const data = getAppData();
+    if (data.groups.find(g => g.letter === letter)) return { success: false, message: `Skupina "${letter}" již existuje.` };
+    data.groups.push({ id: 'group_' + Date.now(), letter, name, categories: {} });
+    saveAppData(data);
+    return { success: true, message: `Skupina "${letter} - ${name}" přidána.` };
+}
+
+function deleteGroup(gid) {
+    const data = getAppData();
+    data.groups = data.groups.filter(g => g.id !== gid);
+    saveAppData(data);
+    return { success: true, message: 'Skupina smazána.' };
+}
+
+function addNewCategory(key, label) {
+    const data = getAppData();
+    if (data.availableCategories.includes(key)) return { success: false, message: `Kategorie "${label}" již existuje.` };
+    data.availableCategories.push(key);
+    data.groups.forEach(g => { if (!g.categories[key]) g.categories[key] = []; });
+    saveAppData(data);
+    return { success: true, message: `Kategorie "${label}" přidána.` };
+}
+
+function addNewQuestion(gid, catKey, questionText, options, correctIndex, imageUrl, explanation) {
+    const data = getAppData();
+    let group = data.groups.find(g => g.id === gid);
+    if (!group) return { success: false, message: 'Skupina neexistuje.' };
+    if (!group.categories) group.categories = {};
+    if (!group.categories[catKey]) group.categories[catKey] = [];
+    group.categories[catKey].push({
+        id: generateId(),
+        question: questionText,
+        options: options,
+        correctIndex: correctIndex,
+        imageUrl: imageUrl || '',
+        explanation: explanation || ''
+    });
+    saveAppData(data);
+    return { success: true, message: 'Otázka přidána.' };
+}
+
+function displayAdminQuestions(gid, filterCat) {
+    const list = document.getElementById('admin-questions-list');
+    if (!list) return;
+    if (!gid) { list.innerHTML = '<div class="empty-state"><i class="fas fa-arrow-left"></i><p>Vyberte skupinu.</p></div>'; return; }
+    let questions = [];
+    const data = getAppData();
+    const group = data.groups.find(g => g.id === gid);
+    if (!group) { list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Skupina nenalezena.</p></div>'; return; }
+    if (filterCat) {
+        questions = group.categories[filterCat] || [];
+    } else {
+        Object.keys(group.categories || {}).forEach(key => {
+            (group.categories[key] || []).forEach(q => questions.push({ ...q, _cat: key }));
+        });
+    }
+    if (questions.length === 0) { list.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Žádné otázky v této kategorii/skupině.</p></div>'; return; }
+    list.innerHTML = questions.map(q => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.75rem;background:rgba(255,255,255,0.03);border-radius:0.5rem;margin-bottom:0.35rem;border:1px solid rgba(255,255,255,0.05);">
+        <div style="flex:1;font-size:0.85rem;">
+            <strong>${q._cat || ''}</strong>: ${q.question || q.text}<br>
+            <span style="font-size:0.75rem;color:var(--text-muted);">
+                A: ${(q.options?.[0] || q.correct || '')} | 
+                B: ${(q.options?.[1] || q.wrong1 || '')} | 
+                C: ${(q.options?.[2] || q.wrong2 || '')}
+            </span>
+        </div>
+        <button class="delete-btn" onclick="deleteQuestion('${gid}','${q.id}')" style="padding:0.2rem 0.4rem;font-size:0.75rem;"><i class="fas fa-trash-alt"></i></button>
+    </div>`).join('');
+}
+
+function deleteQuestion(gid, qid) {
+    if (!confirm('Smazat tuto otázku?')) return;
+    const data = getAppData();
+    const group = data.groups.find(g => g.id === gid);
+    if (!group) return;
+    Object.keys(group.categories || {}).forEach(key => {
+        group.categories[key] = (group.categories[key] || []).filter(q => q.id !== qid);
+    });
+    saveAppData(data);
+    displayAdminQuestions(gid, document.getElementById('admin-filter-category')?.value || null);
+}
+
+function resetDatabase() {
+    localStorage.removeItem(APP_DATA_KEY);
+    localStorage.removeItem(APP_USERS_KEY);
+    localStorage.removeItem(APP_SESSION_KEY);
+    // Also remove user progress
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => { if (k.startsWith('autoskolaPro')) localStorage.removeItem(k); });
+    initAppData();
+}
+
+// ==========================================
+// DUEL SYSTEM - Frontend Integration
+// ==========================================
+let duelSocket = null;
+let duelNotificationInterval = null;
+
+function showDuelModal() {
+    const session = getCurrentSession();
+    if (!session) { showLoginRequiredModal(); return; }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal-content animate__animated animate__bounceIn" style="max-width:500px;">
+            <div class="modal-icon"><i class="fas fa-crosshairs" style="color:var(--accent);"></i></div>
+            <h3 style="font-weight:800;margin-bottom:0.5rem;">⚔️ Duel</h3>
+            <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.85rem;">Vyzvi kamaráda na duel</p>
+            
+            <div style="margin-bottom:1rem;text-align:left;">
+                <label style="font-size:0.8rem;font-weight:600;margin-bottom:0.3rem;display:block;">Počet otázek</label>
+                <select id="duel-question-count" style="width:100%;padding:0.6rem 0.75rem;border-radius:0.75rem;background:var(--input-bg);border:1px solid var(--border-color);color:var(--text-primary);font-size:0.9rem;">
+                    ${[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100].map(n => `<option value="${n}" ${n===25?'selected':''}>${n} otázek</option>`).join('')}
+                </select>
+            </div>
+            
+            <div style="margin-bottom:1rem;text-align:left;">
+                <label style="font-size:0.8rem;font-weight:600;margin-bottom:0.3rem;display:block;">Zadejte uživatelské jméno soupeře (Velké a malé písmena)</label>
+                <div style="display:flex;gap:0.5rem;">
+                    <input type="text" id="duel-opponent-input" placeholder="Zadejte jméno..." style="flex:1;padding:0.6rem 0.75rem;border-radius:0.75rem;background:var(--input-bg);border:1px solid var(--border-color);color:var(--text-primary);font-size:0.9rem;">
+                    <button class="btn-autoskola btn-autoskola-sm" id="duel-search-btn" style="font-size:0.8rem;padding:0.35rem 0.8rem;">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div id="duel-user-result" style="margin-top:0.5rem;font-size:0.85rem;"></div>
+            </div>
+            
+            <div id="duel-challenge-area" style="display:none;">
+                <div id="duel-challenge-user-info" style="padding:0.75rem;border-radius:0.75rem;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);margin-bottom:1rem;text-align:center;font-weight:600;">
+                    <i class="fas fa-check-circle" style="color:#22c55e;"></i> Nalezen: <span id="duel-challenge-username"></span>
+                </div>
+                <button class="btn-autoskola w-100" id="duel-send-btn" style="font-size:0.9rem;padding:0.7rem;">
+                    <i class="fas fa-paper-plane me-2"></i>Odeslat výzvu
+                </button>
+            </div>
+            
+            <div id="duel-waiting-area" style="display:none;text-align:center;padding:1rem;">
+                <div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+                <p style="color:var(--text-muted);font-size:0.9rem;">Výzva odeslána! Čekám na přijetí...</p>
+                <button class="btn-autoskola btn-autoskola-sm btn-autoskola-outline" id="duel-cancel-btn" style="margin-top:0.5rem;font-size:0.8rem;">
+                    <i class="fas fa-times me-1"></i>Zrušit
+                </button>
+            </div>
+            
+            <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;">
+                <button class="btn-autoskola btn-autoskola-sm btn-autoskola-outline modal-close-btn" style="font-size:0.8rem;">
+                    <i class="fas fa-times me-1"></i>Zavřít
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    let foundUserId = null;
+    let currentDuelId = null;
+
+    // Připojení k Socket.IO pro vyhledávání a odesílání výzev
+    if (!duelSocket || !duelSocket.connected) {
+        duelSocket = io({
+            transports: ['websocket', 'polling']
+        });
+        duelSocket.on('connect', () => {
+            duelSocket.emit('user_online', {
+                userId: session.userId,
+                userName: session.name || 'Neznámý',
+                userEmail: session.email
+            });
+        });
+        duelSocket.on('user_found', (data) => {
+            const resultDiv = document.getElementById('duel-user-result');
+            const challengeArea = document.getElementById('duel-challenge-area');
+            if (data.success) {
+                foundUserId = data.user.id;
+                resultDiv.innerHTML = `<span style="color:#22c55e;"><i class="fas fa-check-circle"></i> ${data.user.name} ${data.isOnline ? '<span style="color:#22c55e;">(🟢 Online)</span>' : '<span style="color:var(--text-muted);">(🔴 Offline)</span>'}</span>`;
+                document.getElementById('duel-challenge-username').textContent = data.user.name;
+                challengeArea.style.display = 'block';
+            } else {
+                foundUserId = null;
+                challengeArea.style.display = 'none';
+                resultDiv.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-exclamation-circle"></i> ${data.message}</span>`;
+            }
+        });
+        duelSocket.on('duel_challenge_sent', (data) => {
+            currentDuelId = data.duelId;
+            document.getElementById('duel-challenge-area').style.display = 'none';
+            document.getElementById('duel-waiting-area').style.display = 'block';
+        });
+        duelSocket.on('duel_error', (data) => {
+            const resultDiv = document.getElementById('duel-user-result');
+            resultDiv.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-exclamation-circle"></i> ${data.message}</span>`;
+            document.getElementById('duel-challenge-area').style.display = 'block';
+            document.getElementById('duel-waiting-area').style.display = 'none';
+        });
+        duelSocket.on('duel_declined', (data) => {
+            showInfoModal('fa-info-circle', 'Odmítnuto', data.message || 'Soupeř odmítl výzvu.', 'OK');
+            document.getElementById('duel-challenge-area').style.display = 'block';
+            document.getElementById('duel-waiting-area').style.display = 'none';
+            currentDuelId = null;
+        });
+        duelSocket.on('duel_cancelled', (data) => {
+            showInfoModal('fa-info-circle', 'Zrušeno', data.message || 'Duet byl zrušen.', 'OK');
+            modal.remove();
+        });
+        duelSocket.on('duel_start', (data) => {
+            modal.remove();
+            // Přesměrování na duel stránku
+            window.location.href = 'duel.html';
+        });
+    }
+
+    // Vyhledávání při psaní nebo kliknutí na tlačítko
+    function searchOpponent() {
+        const query = document.getElementById('duel-opponent-input').value.trim();
+        const resultDiv = document.getElementById('duel-user-result');
+        if (!query) { resultDiv.innerHTML = ''; document.getElementById('duel-challenge-area').style.display = 'none'; return; }
+        if (duelSocket && duelSocket.connected) {
+            duelSocket.emit('find_user', query);
+        } else {
+            resultDiv.innerHTML = `<span style="color:var(--text-muted);">Připojuji k serveru...</span>`;
+        }
+    }
+
+    modal.querySelector('.modal-close-btn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+    document.getElementById('duel-search-btn').addEventListener('click', searchOpponent);
+    document.getElementById('duel-opponent-input').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') searchOpponent();
+        else if (this.value.trim().length >= 2) {
+            setTimeout(() => searchOpponent(), 300);
+        }
+    });
+
+    document.getElementById('duel-send-btn').addEventListener('click', function() {
+        if (!foundUserId) { showInfoModal('fa-exclamation-circle', 'Chyba', 'Nejprve vyhledejte soupeře.', 'OK'); return; }
+        const questionCount = parseInt(document.getElementById('duel-question-count').value, 10);
+        if (duelSocket && duelSocket.connected) {
+            duelSocket.emit('duel_challenge', {
+                challengerId: session.userId,
+                challengerName: session.name || 'Neznámý',
+                challengedId: foundUserId,
+                questionCount: questionCount
+            });
+        }
+    });
+
+    document.getElementById('duel-cancel-btn').addEventListener('click', function() {
+        if (currentDuelId && duelSocket && duelSocket.connected) {
+            duelSocket.emit('duel_decline', { duelId: currentDuelId });
+        }
+        modal.remove();
+    });
+}
+
+function initDuelNotificationListener() {
+    // Inicializace Socket.IO pro příjem oznámení o duelu kdekoliv v aplikaci
+    if (duelNotificationInterval) return;
+    
+    // Počkáme na načtení socket.io ze serveru
+    if (typeof io === 'undefined') {
+        setTimeout(initDuelNotificationListener, 1000);
+        return;
+    }
+
+    const session = getCurrentSession();
+    if (!session) return;
+
+    const notificationSocket = io({
+        transports: ['websocket', 'polling']
+    });
+
+    notificationSocket.on('connect', () => {
+        notificationSocket.emit('user_online', {
+            userId: session.userId,
+            userName: session.name || 'Neznámý',
+            userEmail: session.email
+        });
+    });
+
+    notificationSocket.on('duel_invitation', (data) => {
+        showDuelInvitationBanner(data);
+    });
+
+    notificationSocket.on('duel_start', (data) => {
+        // Uložit ID duelu a přesměrovat
+        localStorage.setItem('currentDuelId', data.duelId);
+        const banner = document.querySelector('.duel-invitation-banner');
+        if (banner) banner.remove();
+        window.location.href = 'duel.html';
+    });
+
+    duelNotificationInterval = true;
+}
+
+function showDuelInvitationBanner(data) {
+    // Odstranit starý banner
+    const old = document.querySelector('.duel-invitation-banner');
+    if (old) old.remove();
+
+    const banner = document.createElement('div');
+    banner.className = 'duel-invitation-banner';
+    banner.style.cssText = `
+        position:fixed;top:5rem;left:50%;transform:translateX(-50%);z-index:10000;
+        max-width:500px;width:90%;padding:1rem;border-radius:1rem;
+        background:rgba(20,20,35,0.95);border:1px solid var(--accent);
+        backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,0.5);
+        animation:slideInDown 0.3s ease;
+    `;
+    
+    let acceptTimer = 10;
+    let timerInterval = null;
+
+    banner.innerHTML = `
+        <div style="text-align:center;margin-bottom:0.75rem;">
+            <div style="font-size:2.5rem;margin-bottom:0.25rem;">⚔️</div>
+            <div style="font-weight:700;font-size:0.95rem;">
+                <span style="color:var(--accent);">${data.challengerName}</span> tě vyzval na duel!
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">
+                O <strong>${data.questionCount}</strong> otázkách
+            </div>
+        </div>
+        <div style="display:flex;gap:0.75rem;justify-content:center;">
+            <button id="duel-accept-btn" style="flex:1;padding:0.6rem;border-radius:0.75rem;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;position:relative;overflow:hidden;">
+                <span id="duel-accept-text">Přijmout (${acceptTimer})</span>
+                <div id="duel-accept-timer-bar" style="position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,0.5);width:100%;transition:width 1s linear;"></div>
+            </button>
+            <button id="duel-decline-btn" style="flex:1;padding:0.6rem;border-radius:0.75rem;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;">
+                Odmítnout
+            </button>
+        </div>
+        <button id="duel-banner-close" style="position:absolute;top:0.5rem;right:0.75rem;background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">&times;</button>
+    `;
+
+    document.body.appendChild(banner);
+
+    // Timer
+    timerInterval = setInterval(() => {
+        acceptTimer--;
+        const acceptBtn = document.getElementById('duel-accept-btn');
+        const acceptText = document.getElementById('duel-accept-text');
+        const timerBar = document.getElementById('duel-accept-timer-bar');
+        
+        if (acceptText) acceptText.textContent = `Přijmout (${acceptTimer})`;
+        if (timerBar) timerBar.style.width = (acceptTimer / 10 * 100) + '%';
+        
+        if (acceptTimer <= 0) {
+            clearInterval(timerInterval);
+            banner.remove();
+            // Auto-decline
+            if (typeof io !== 'undefined') {
+                const tempSocket = io({ transports: ['websocket', 'polling'] });
+                tempSocket.on('connect', () => {
+                    tempSocket.emit('duel_decline', { duelId: data.duelId });
+                    tempSocket.disconnect();
+                });
+            }
+        }
+    }, 1000);
+
+    // Accept
+    document.getElementById('duel-accept-btn').addEventListener('click', function() {
+        clearInterval(timerInterval);
+        // Uložíme ID duelu do localStorage pro duel.html
+        localStorage.setItem('currentDuelId', data.duelId);
+        banner.innerHTML = `
+            <div style="text-align:center;padding:1rem;">
+                <div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+                <div style="font-weight:600;">Přijímám duel...</div>
+            </div>`;
+        
+        // Odešleme accept a počkáme na duel_start, pak přesměrujeme
+        if (typeof io !== 'undefined') {
+            const acceptSocket = io({ transports: ['websocket', 'polling'] });
+            acceptSocket.on('connect', () => {
+                // DŮLEŽITÉ: Neregistrujeme user_online, aby disconnect nespustil zrušení duelu
+                acceptSocket.emit('duel_accept', { duelId: data.duelId });
+            });
+            // Když přijde duel_start na tento socket, rovnou přesměrujeme
+            acceptSocket.on('duel_start', () => {
+                acceptSocket.disconnect();
+                window.location.href = 'duel.html';
+            });
+            // Fallback: přesměrování po 3 sekundách
+            setTimeout(() => {
+                acceptSocket.disconnect();
+                window.location.href = 'duel.html';
+            }, 3000);
+        } else {
+            setTimeout(() => {
+                window.location.href = 'duel.html';
+            }, 500);
+        }
+    });
+
+    // Decline
+    document.getElementById('duel-decline-btn').addEventListener('click', function() {
+        clearInterval(timerInterval);
+        banner.remove();
+        if (typeof io !== 'undefined') {
+            const declineSocket = io({ transports: ['websocket', 'polling'] });
+            declineSocket.on('connect', () => {
+                declineSocket.emit('duel_decline', { duelId: data.duelId });
+                declineSocket.disconnect();
+            });
+        }
+    });
+
+    // Close button
+    document.getElementById('duel-banner-close').addEventListener('click', function() {
+        clearInterval(timerInterval);
+        banner.remove();
+    });
+}
 
 // ==========================================
 // DOM READY
 // ==========================================
 document.addEventListener('DOMContentLoaded', async function() {
+
     initTheme();
     initAppData();
     AudioFX.init();

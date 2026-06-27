@@ -1,0 +1,121 @@
+{
+  "id": "duel_1782406607468_kq90d6",
+  "challengerId": "id_1782397177175_r26ys4fah",
+  "challengerName": "ccc",
+  "challengedId": "ceo_001",
+  "challengedName": "scale.exe",
+  "questionCount": 5,
+  "questions": [
+    {
+      "question_id": "06060277",
+      "question_text": "Častou příčinou těžkých nehod na dálnici při předjíždění je:",
+      "question_media": "",
+      "options": [
+        "Jízda s bezpečnou vzdáleností mezi vozidly.",
+        "Pomalá jízda.",
+        "Nedostatečné sledování provozu za vozidlem."
+      ],
+      "correctIndex": 2,
+      "points": 1
+    },
+    {
+      "question_id": "06050340",
+      "question_text": "Řidič vozidla, které je povinně vybaveno přenosným trojúhelníkem a pro technickou závadu se na pozemní komunikaci mimo obec stalo nepojízdným, je povinen tento trojúhelník umístit:",
+      "question_media": "",
+      "options": [
+        "Na okraj vozovky ve vzdálenosti nejméně 50 metrů za vozidlem, na dálnici nejméně 100 m za vozidlem.",
+        "Na střechu vozidla, odkud bude zezadu dobře viditelný.",
+        "Na střed vozovky ve vzdálenosti nejméně 50 metrů za vozidlem, na dálnici nejméně 100 m za vozidlem."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06050204",
+      "question_text": "Tato dopravní značka:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/a2b.jpg",
+      "options": [
+        "Upozorňuje na dvě nebo více po sobě následujících zatáček (směrových oblouků), z nichž první je vlevo, a jejichž bezpečné projetí vyžaduje výrazné snížení rychlosti jízdy.",
+        "Upozorňuje na zatáčku (směrový oblouk) vpravo, jehož bezpečné projetí vyžaduje výrazné snížení rychlosti jízdy.",
+        "Upozorňuje na dvě nebo více po sobě následujících zatáček (směrových oblouků), z nichž první je vpravo, a jejichž bezpečné projetí vyžaduje výrazné snížení rychlosti jízdy."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06050375",
+      "question_text": "Tato dopravní značka:",
+      "question_media": "https://www.autoskola-testy.cz/img/single/a4.jpg",
+      "options": [
+        "Upozorňuje v odůvodněných případech na křižovatku s kruhovým objezdem.",
+        "Označuje dopravní okruh zřízený pro objíždění obce nebo její části.",
+        "Přikazuje jízdu po křižovatce s kruhovým objezdem ve směru šipek na značce zobrazených."
+      ],
+      "correctIndex": 0,
+      "points": 1
+    },
+    {
+      "question_id": "06060385",
+      "question_text": "Předjíždí se:",
+      "question_media": "",
+      "options": [
+        "Vpravo nebo vlevo, podle toho, kde je v dané situaci více prostoru pro bezpečné předjetí.",
+        "Vlevo; vpravo se předjíždí vozidlo, které mění směr jízdy vlevo a není-li již pochybnosti o dalším směru jeho jízdy.",
+        "Vlevo, a to bez výjimky."
+      ],
+      "correctIndex": 1,
+      "points": 1
+    }
+  ],
+  "status": "accepted",
+  "startTime": 1782406608231,
+  "challengerAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 2,
+      "timeSpent": 6.894
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 1.188
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 0,
+      "timeSpent": 8.702
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 2,
+      "timeSpent": 15.192
+    }
+  ],
+  "challengedAnswers": [
+    {
+      "questionIndex": 0,
+      "selectedIndex": 0,
+      "timeSpent": 4.213
+    },
+    {
+      "questionIndex": 1,
+      "selectedIndex": 0,
+      "timeSpent": 6.25
+    },
+    {
+      "questionIndex": 2,
+      "selectedIndex": 2,
+      "timeSpent": 25.33
+    },
+    {
+      "questionIndex": 3,
+      "selectedIndex": 0,
+      "timeSpent": 1.982
+    },
+    {
+      "questionIndex": 4,
+      "selectedIndex": 0,
+      "timeSpent": 4.048
+    }
+  ]
+}
